@@ -1,0 +1,23 @@
+{
+  "apiKey": "YOUR_TMDB_API_KEY_HERE",
+  "useApiFirst": true,
+  "contentType": "tv",
+  "searchQueries": ["Breaking Bad", "Game of Thrones"],
+  "genreIds": [10759, 18],
+  "yearFrom": 2020,
+  "yearTo": 2025,
+  "resultsWanted": 10,
+  "maxPages": 3,
+  "sortBy": "popularity.desc",
+  "collectPeople": true,
+  "collectReviews": true,
+  "collectKeywords": true,
+  "collectImages": true,
+  "collectCollections": false,
+  "maxReviewsPerContent": 25,
+  "maxImagesPerContent": 20,
+  "minDelayMs": 1000,
+  "maxDelayMs": 3000,
+  "peopleQuery": "Leonardo DiCaprio",
+  "peopleResultsWanted": 10
+}

@@ -1,0 +1,58 @@
+{
+  "actorSpecification": 1,
+  "fields": {},
+  "views": {
+    "overview": {
+      "title": "Overview",
+      "transformation": {
+        "fields": [
+          "title",
+          "release_date",
+          "vote_average",
+          "genres",
+          "overview",
+          "tmdb_id",
+          "poster_path",
+          "backdrop_path"
+        ]
+      },
+      "display": {
+        "component": "table",
+        "properties": {
+          "title": {
+            "label": "Movie Title",
+            "format": "text"
+          },
+          "release_date": {
+            "label": "Release Date",
+            "format": "date"
+          },
+          "vote_average": {
+            "label": "Rating",
+            "format": "number"
+          },
+          "genres": {
+            "label": "Genres",
+            "format": "text"
+          },
+          "overview": {
+            "label": "Overview",
+            "format": "text"
+          },
+          "tmdb_id": {
+            "label": "TMDb ID",
+            "format": "number"
+          },
+          "poster_path": {
+            "label": "Poster Path",
+            "format": "text"
+          },
+          "backdrop_path": {
+            "label": "Backdrop Path",
+            "format": "text"
+          }
+        }
+      }
+    }
+  }
+}

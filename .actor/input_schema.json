@@ -1,0 +1,181 @@
+{
+  "title": "TMDb Comprehensive Scraper",
+  "description": "Scrape comprehensive movie, TV show, and people data from The Movie Database (TMDb). Supports API access with fallback to website scraping.",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "apiKey": {
+      "title": "TMDb API Key (Optional)",
+      "type": "string",
+      "description": "Your TMDb API key (v3 auth). If provided, uses TMDb API for faster data collection. If not provided, falls back to website scraping. Get one at https://www.themoviedb.org/settings/api",
+      "editor": "textfield",
+      "isSecret": true
+    },
+    "useApiFirst": {
+      "title": "Use API First (when available)",
+      "type": "boolean",
+      "description": "If true and API key is provided, attempts to use TMDb API first. If false or API key is missing, uses website scraping directly.",
+      "editor": "checkbox",
+      "default": true
+    },
+    "contentType": {
+      "title": "Content Type",
+      "type": "string",
+      "description": "Type of content to scrape: movies, TV shows, people, or both movies and TV shows.",
+      "enum": ["movie", "tv", "person", "both"],
+      "default": "tv",
+      "editor": "select"
+    },
+    "searchQueries": {
+      "title": "Search Queries",
+      "type": "array",
+      "description": "List of search terms to query TMDb for. Each query will be searched separately.",
+      "items": {
+        "type": "string"
+      },
+      "editor": "json",
+      "default": []
+    },
+    "genreIds": {
+      "title": "Genre IDs",
+      "type": "array",
+      "description": "TMDb genre IDs to filter by. For movies: 28=Action, 35=Comedy, 18=Drama, etc. For TV: 10759=Action&Adventure, 16=Animation, 35=Comedy, etc.",
+      "items": {
+        "type": "integer"
+      },
+      "editor": "json"
+    },
+    "yearFrom": {
+      "title": "Release Year From",
+      "type": "integer",
+      "description": "Minimum release year to filter content.",
+      "editor": "number",
+      "minimum": 1900,
+      "maximum": 2030
+    },
+    "yearTo": {
+      "title": "Release Year To",
+      "type": "integer",
+      "description": "Maximum release year to filter content.",
+      "editor": "number",
+      "minimum": 1900,
+      "maximum": 2030
+    },
+    "resultsWanted": {
+      "title": "Maximum Results",
+      "type": "integer",
+      "description": "Maximum number of content items to collect per search query.",
+      "minimum": 1,
+      "default": 100,
+      "editor": "number"
+    },
+    "maxPages": {
+      "title": "Maximum Pages",
+      "type": "integer",
+      "description": "Maximum number of API result pages to fetch (each page contains ~20 items).",
+      "minimum": 1,
+      "default": 5,
+      "editor": "number"
+    },
+    "sortBy": {
+      "title": "Sort By",
+      "type": "string",
+      "description": "Sort order for discover endpoint. Only used when no search queries are provided.",
+      "enum": [
+        "popularity.desc",
+        "popularity.asc",
+        "release_date.desc",
+        "release_date.asc",
+        "vote_average.desc",
+        "vote_average.asc",
+        "vote_count.desc",
+        "vote_count.asc"
+      ],
+      "default": "popularity.desc",
+      "editor": "select"
+    },
+    "collectPeople": {
+      "title": "Collect People Data",
+      "type": "boolean",
+      "description": "Collect detailed information about people (actors, directors, etc.) associated with the content.",
+      "editor": "checkbox",
+      "default": false
+    },
+    "collectReviews": {
+      "title": "Collect Reviews",
+      "type": "boolean",
+      "description": "Collect user reviews for movies and TV shows.",
+      "editor": "checkbox",
+      "default": false
+    },
+    "collectKeywords": {
+      "title": "Collect Keywords",
+      "type": "boolean",
+      "description": "Collect keywords/tags associated with the content.",
+      "editor": "checkbox",
+      "default": false
+    },
+    "collectImages": {
+      "title": "Collect Images",
+      "type": "boolean",
+      "description": "Collect poster and backdrop images for the content.",
+      "editor": "checkbox",
+      "default": false
+    },
+    "collectCollections": {
+      "title": "Collect Collections",
+      "type": "boolean",
+      "description": "Collect movie/TV show collection information.",
+      "editor": "checkbox",
+      "default": false
+    },
+    "maxReviewsPerContent": {
+      "title": "Max Reviews Per Content",
+      "type": "integer",
+      "description": "Maximum number of reviews to collect per movie/TV show.",
+      "minimum": 1,
+      "default": 25,
+      "editor": "number"
+    },
+    "maxImagesPerContent": {
+      "title": "Max Images Per Content",
+      "type": "integer",
+      "description": "Maximum number of images to collect per movie/TV show.",
+      "minimum": 1,
+      "default": 20,
+      "editor": "number"
+    },
+    "minDelayMs": {
+      "title": "Minimum Delay (ms)",
+      "type": "integer",
+      "description": "Minimum delay between requests to respect rate limits.",
+      "minimum": 100,
+      "default": 1000,
+      "editor": "number"
+    },
+    "maxDelayMs": {
+      "title": "Maximum Delay (ms)",
+      "type": "integer",
+      "description": "Maximum delay between requests for randomization.",
+      "minimum": 100,
+      "default": 3000,
+      "editor": "number"
+    },
+    "peopleQuery": {
+      "title": "People Search Query",
+      "type": "string",
+      "description": "Search query for people when contentType is 'person'.",
+      "editor": "textfield"
+    },
+    "peopleResultsWanted": {
+      "title": "People Results Wanted",
+      "type": "integer",
+      "description": "Maximum number of people to collect when searching for people.",
+      "minimum": 1,
+      "default": 10,
+      "editor": "number"
+    }
+  },
+  "required": [],
+  "additionalProperties": false
+}
