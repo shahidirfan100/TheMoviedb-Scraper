@@ -19,5 +19,8 @@
   "minDelayMs": 1000,
   "maxDelayMs": 3000,
   "peopleQuery": "Leonardo DiCaprio",
-  "peopleResultsWanted": 10
+  "peopleResultsWanted": 10,
+  "useDataCenterProxies": true,
+  "proxyGroups": ["GOOGLE_SERP", "BUYPROXIES94952"],
+  "proxyCountry": ""
 }

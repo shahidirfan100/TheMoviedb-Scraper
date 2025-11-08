@@ -665,6 +665,7 @@ const collectContentWithWeb = async ({
     stats,
     proxyConfiguration,
     headerGenerator,
+    concurrency = 1,
 }) => {
     if (!limit || limit <= 0) return 0;
 
@@ -672,6 +673,34 @@ const collectContentWithWeb = async ({
     let page = 1;
     let nextUrl = buildWebListingUrl({ contentType, query, discoverFilters: discoverFilters ?? {}, page });
     const seenIds = new Set();
+    const effectiveConcurrency = Math.max(1, Number(concurrency) || 1);
+
+    const resolveNextUrl = ($) => {
+        const selectors = [
+            'a[rel="next"]',
+            '.pagination a[rel="next"]',
+            '.pagination .next a',
+            '.pagination a.next',
+            'a[aria-label="next"]',
+            'a[aria-label="Next"]',
+        ];
+        for (const selector of selectors) {
+            const anchor = $(selector).first();
+            if (anchor && anchor.length) {
+                const href = anchor.attr('href');
+                if (href) return new URL(href, TMDB_WEB_BASE).href;
+            }
+        }
+        const fallbackAnchor = $('.pagination a').filter((_, el) => {
+            const text = $(el).text().trim().toLowerCase();
+            return text === 'next' || text === '›' || text === '»' || text.includes('next');
+        }).first();
+        if (fallbackAnchor && fallbackAnchor.length) {
+            const href = fallbackAnchor.attr('href');
+            if (href) return new URL(href, TMDB_WEB_BASE).href;
+        }
+        return null;
+    };
 
     while (nextUrl && saved < limit) {
         log.info(`TMDb web scraping ${contentType} page ${page} :: ${nextUrl}`);
@@ -679,22 +708,31 @@ const collectContentWithWeb = async ({
         const items = extractListingItems(page$, contentType);
         if (!items.length) break;
 
+        const candidates = [];
         for (const item of items) {
-            if (saved >= limit) break;
             if (seenIds.has(item.id)) continue;
             seenIds.add(item.id);
-
-            const { page$: detail$ } = await fetchWebPage(item.href, proxyConfiguration, headerGenerator);
-            const detailData = extractTmdbContentData(detail$, contentType);
-            await pushWebContentRecord(item, detailData, contentType, stats);
-            saved += 1;
-
-            await randomDelay(delayRange.minDelayMs, delayRange.maxDelayMs);
+            candidates.push(item);
         }
 
-        const nextHref = page$('.pagination a[rel="next"]').attr('href')
-            || page$('.pagination a').filter((_, el) => page$(el).text().trim().toLowerCase() === 'next').attr('href');
-        nextUrl = nextHref ? new URL(nextHref, TMDB_WEB_BASE).href : null;
+        while (candidates.length && saved < limit) {
+            const batch = candidates.splice(0, effectiveConcurrency);
+            const results = await Promise.all(batch.map(async (item) => {
+                try {
+                    const { page$: detail$ } = await fetchWebPage(item.href, proxyConfiguration, headerGenerator);
+                    const detailData = extractTmdbContentData(detail$, contentType);
+                    await pushWebContentRecord(item, detailData, contentType, stats);
+                    await randomDelay(delayRange.minDelayMs, delayRange.maxDelayMs);
+                    return 1;
+                } catch (error) {
+                    log.warning(`TMDb web fallback failed for ${item.href}: ${error.message}`);
+                    return 0;
+                }
+            }));
+            saved += results.reduce((sum, val) => sum + val, 0);
+        }
+
+        nextUrl = resolveNextUrl(page$);
         page += 1;
     }
 
@@ -802,7 +840,9 @@ await Actor.main(async () => {
         maxDelayMs = 3000,
         peopleQuery,
         peopleResultsWanted = 10,
-        proxyConfiguration,
+        useDataCenterProxies = true,
+        proxyGroups = ['GOOGLE_SERP', 'BUYPROXIES94952'],
+        proxyCountry = '',
         maxConcurrency = 1,
         requestTimeoutSecs = 35,
     } = input;
@@ -854,7 +894,26 @@ await Actor.main(async () => {
 
     let proxyConfigurationInstance = null;
     try {
-        proxyConfigurationInstance = await Actor.createProxyConfiguration(proxyConfiguration ?? { useApifyProxy: true });
+        // Build proxy configuration from individual fields
+        const proxyConfig = {};
+        
+        // Apply individual proxy settings
+        if (useDataCenterProxies !== undefined) {
+            proxyConfig.useApifyProxy = useDataCenterProxies;
+        }
+        if (proxyGroups && proxyGroups.length > 0) {
+            proxyConfig.groups = proxyGroups;
+        }
+        if (proxyCountry && proxyCountry.trim()) {
+            proxyConfig.countryCode = proxyCountry.trim();
+        }
+        
+        // Ensure we have a default proxy configuration if none provided
+        if (!proxyConfig.useApifyProxy && !proxyConfig.groups && !proxyConfig.countryCode) {
+            proxyConfig.useApifyProxy = true;
+        }
+        
+        proxyConfigurationInstance = await Actor.createProxyConfiguration(proxyConfig);
     } catch (error) {
         log.warning(`Proxy configuration failed (${error.message}), continuing without proxy.`);
     }
@@ -933,6 +992,7 @@ await Actor.main(async () => {
                     stats,
                     proxyConfiguration: proxyConfigurationInstance,
                     headerGenerator,
+                    concurrency: concurrencyLimit,
                 });
                 collected += webCollected;
                 remainingResults = Math.max(0, remainingResults - webCollected);

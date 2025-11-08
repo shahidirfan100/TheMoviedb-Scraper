@@ -169,6 +169,55 @@
       "minimum": 1,
       "default": 10,
       "editor": "number"
+    },
+    "useDataCenterProxies": {
+      "title": "Use Data Center Proxies",
+      "type": "boolean",
+      "description": "Use data center proxies for faster and cheaper scraping. Recommended for most use cases.",
+      "editor": "checkbox",
+      "default": true
+    },
+    "proxyGroups": {
+      "title": "Proxy Groups",
+      "type": "array",
+      "description": "Specific proxy groups to use. Leave empty to use default data center groups.",
+      "items": {
+        "type": "string"
+      },
+      "editor": "stringArray",
+      "default": ["GOOGLE_SERP", "BUYPROXIES94952"]
+    },
+    "proxyCountry": {
+      "title": "Proxy Country",
+      "type": "string",
+      "description": "Country code for proxies (e.g., 'US', 'GB', 'DE'). Leave empty for automatic selection.",
+      "editor": "textfield",
+      "default": ""
+    },
+    "maxConcurrency": {
+      "title": "Parallel Requests",
+      "type": "integer",
+      "description": "Maximum number of TMDb API detail fetches and fallback detail page requests processed in parallel. Raise cautiously to speed up scraping.",
+      "minimum": 1,
+      "default": 3,
+      "editor": "number"
+    },
+    "requestTimeoutSecs": {
+      "title": "Request Timeout (seconds)",
+      "type": "integer",
+      "description": "Maximum time to wait for a single API or website request before giving up.",
+      "minimum": 5,
+      "default": 35,
+      "editor": "number"
+    },
+    "proxyConfiguration": {
+      "title": "Proxy configuration",
+      "type": "object",
+      "description": "Advanced proxy configuration. Defaults to Apify Proxy if not provided.",
+      "editor": "proxy",
+      "default": {
+        "useApifyProxy": true
+      }
     }
   },
   "required": [],
