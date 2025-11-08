@@ -28,22 +28,17 @@
     },
     "searchQueries": {
       "title": "Search Queries",
-      "type": "array",
-      "description": "List of search terms to query TMDb for. Each query will be searched separately.",
-      "items": {
-        "type": "string"
-      },
-      "editor": "json",
-      "default": []
+      "type": "string",
+      "description": "Comma-separated list of search terms to query TMDb for. Each query will be searched separately.",
+      "editor": "textfield",
+      "default": ""
     },
     "genreIds": {
       "title": "Genre IDs",
-      "type": "array",
-      "description": "TMDb genre IDs to filter by. For movies: 28=Action, 35=Comedy, 18=Drama, etc. For TV: 10759=Action&Adventure, 16=Animation, 35=Comedy, etc.",
-      "items": {
-        "type": "integer"
-      },
-      "editor": "json"
+      "type": "string",
+      "description": "Comma-separated TMDb genre IDs to filter by. For movies: 28=Action, 35=Comedy, 18=Drama, etc. For TV: 10759=Action&Adventure, 16=Animation, 35=Comedy, etc.",
+      "editor": "textfield",
+      "default": ""
     },
     "yearFrom": {
       "title": "Release Year From",
