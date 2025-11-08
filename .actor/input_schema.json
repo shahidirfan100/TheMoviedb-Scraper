@@ -11,15 +11,6 @@
       "editor": "textfield",
       "isSecret": true
     },
-    "apiKeys": {
-      "title": "Additional TMDb API Keys",
-      "type": "array",
-      "description": "Optional list of backup TMDb API keys. The actor uses the primary key first and automatically falls back to the next key if the current one fails.",
-      "items": {
-        "type": "string"
-      },
-      "editor": "json"
-    },
     "useApiFirst": {
       "title": "Use API First (when available)",
       "type": "boolean",
@@ -178,6 +169,31 @@
       "minimum": 1,
       "default": 10,
       "editor": "number"
+    },
+    "maxConcurrency": {
+      "title": "API Detail Concurrency",
+      "type": "integer",
+      "description": "Maximum number of TMDb API detail requests processed in parallel. Increase for faster runs when you have a generous rate limit.",
+      "minimum": 1,
+      "default": 1,
+      "editor": "number"
+    },
+    "requestTimeoutSecs": {
+      "title": "Request Timeout (seconds)",
+      "type": "integer",
+      "description": "Maximum time to wait for TMDb API and website responses before aborting the request.",
+      "minimum": 5,
+      "default": 35,
+      "editor": "number"
+    },
+    "proxyConfiguration": {
+      "title": "Proxy configuration",
+      "type": "object",
+      "description": "Select the proxy the actor should use. Defaults to Apify Proxy.",
+      "editor": "proxy",
+      "default": {
+        "useApifyProxy": true
+      }
     }
   },
   "required": [],

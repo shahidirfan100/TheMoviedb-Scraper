@@ -5,8 +5,8 @@ import { load as loadHtml } from 'cheerio';
 
 const TMDB_API_BASE = 'https://api.themoviedb.org/3';
 const TMDB_WEB_BASE = 'https://www.themoviedb.org';
-const DEFAULT_PROXY_OPTIONS = { useApifyProxy: true };
 const MAX_PERSON_PAGES = 5;
+let REQUEST_TIMEOUT_MS = 35000;
 
 const WEB_HEADERS = {
     Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
@@ -90,7 +90,7 @@ const tmdbApiRequest = async ({ path, apiKey, params = {}, label }) => {
         url: url.toString(),
         responseType: 'json',
         retry: { limit: 2 },
-        timeout: { request: 30000 },
+        timeout: { request: REQUEST_TIMEOUT_MS },
     });
 
     if (response.statusCode && response.statusCode >= 400) {
@@ -100,8 +100,41 @@ const tmdbApiRequest = async ({ path, apiKey, params = {}, label }) => {
     return response.body;
 };
 
+const formatList = (values) => {
+    if (!Array.isArray(values)) return null;
+    const sanitized = values
+        .map((value) => {
+            if (typeof value === 'string') return value.trim();
+            if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+            return null;
+        })
+        .filter(Boolean);
+    return sanitized.length ? sanitized.join(', ') : null;
+};
+
+const formatObjectList = (values, extractor) => {
+    if (!Array.isArray(values)) return null;
+    const sanitized = values
+        .map((item) => extractor(item))
+        .filter(Boolean);
+    return sanitized.length ? sanitized.join(', ') : null;
+};
+
 const mapContentRecord = (detail, contentType, source) => {
     const baseTitle = contentType === 'movie' ? detail.title : detail.name;
+    const genreNames = formatObjectList(detail.genres, (genre) => genre?.name);
+    const genreIdsRaw = Array.isArray(detail.genres)
+        ? detail.genres.map((g) => g.id).filter((id) => Number.isFinite(id))
+        : null;
+    const genreIds = formatList(genreIdsRaw);
+    const spokenLanguages = formatObjectList(detail.spoken_languages, (lang) => lang?.english_name || lang?.name);
+    const productionCompanies = formatObjectList(detail.production_companies, (company) => company?.name);
+    const productionCountries = formatObjectList(detail.production_countries, (country) => country?.name);
+    const originCountries = formatList(detail.origin_country);
+    const networks = formatObjectList(detail.networks, (network) => network?.name);
+    const createdBy = formatObjectList(detail.created_by, (creator) => creator?.name);
+    const episodeRunTime = formatList(detail.episode_run_time);
+
     return {
         data_type: 'content',
         source,
@@ -120,11 +153,11 @@ const mapContentRecord = (detail, contentType, source) => {
         poster_path: detail.poster_path,
         backdrop_path: detail.backdrop_path,
         adult: detail.adult ?? false,
-        genres: detail.genres?.map((g) => g.name) || [],
-        genre_ids: detail.genres?.map((g) => g.id) || [],
-        spoken_languages: detail.spoken_languages?.map((l) => l.english_name || l.name).filter(Boolean) || [],
-        production_companies: detail.production_companies?.map((c) => c.name).filter(Boolean) || [],
-        production_countries: detail.production_countries?.map((c) => c.name).filter(Boolean) || [],
+        genres: genreNames,
+        genre_ids: genreIds,
+        spoken_languages: spokenLanguages,
+        production_companies: productionCompanies,
+        production_countries: productionCountries,
         fetchedAt: new Date().toISOString(),
         ...(contentType === 'movie'
             ? {
@@ -138,10 +171,10 @@ const mapContentRecord = (detail, contentType, source) => {
                 last_air_date: detail.last_air_date,
                 number_of_seasons: detail.number_of_seasons,
                 number_of_episodes: detail.number_of_episodes,
-                episode_run_time: detail.episode_run_time,
-                networks: detail.networks?.map((n) => n.name).filter(Boolean) || [],
-                created_by: detail.created_by?.map((c) => c.name).filter(Boolean) || [],
-                origin_country: detail.origin_country,
+                episode_run_time: episodeRunTime,
+                networks,
+                created_by: createdBy,
+                origin_country: originCountries,
             }),
     };
 };
@@ -373,8 +406,11 @@ const collectContentWithApi = async ({
     delayRange,
     extrasConfig,
     stats,
+    maxConcurrency = 1,
 }) => {
     let saved = 0;
+    const concurrency = Math.max(1, Number(maxConcurrency) || 1);
+
     for (let page = 1; page <= maxPages && saved < limit; page += 1) {
         const params = query
             ? { query, page, include_adult: false }
@@ -392,24 +428,33 @@ const collectContentWithApi = async ({
         const items = response.results ?? [];
         if (!items.length) break;
 
-        for (const item of items) {
-            if (saved >= limit) break;
-            const detail = await fetchContentDetailFromApi({
-                id: item.id,
-                apiKey,
-                contentType,
-                extrasConfig,
-            });
-            await pushContentAndExtras({
-                detail,
-                contentType,
-                apiKey,
-                extrasConfig,
-                stats,
-                source: 'tmdb_api',
-            });
-            saved += 1;
-            await randomDelay(delayRange.minDelayMs, delayRange.maxDelayMs);
+        const queue = items.slice(0, limit - saved);
+        while (queue.length && saved < limit) {
+            const batch = queue.splice(0, concurrency);
+            const results = await Promise.all(batch.map(async (item) => {
+                try {
+                    const detail = await fetchContentDetailFromApi({
+                        id: item.id,
+                        apiKey,
+                        contentType,
+                        extrasConfig,
+                    });
+                    await pushContentAndExtras({
+                        detail,
+                        contentType,
+                        apiKey,
+                        extrasConfig,
+                        stats,
+                        source: 'tmdb_api',
+                    });
+                    await randomDelay(delayRange.minDelayMs, delayRange.maxDelayMs);
+                    return 1;
+                } catch (error) {
+                    log.warning(`Failed to process ${contentType} ${item.id}: ${error.message}`);
+                    return 0;
+                }
+            }));
+            saved += results.reduce((sum, val) => sum + val, 0);
         }
 
         if ((response.total_pages ?? 1) <= page) break;
@@ -450,13 +495,14 @@ const fetchWebPage = async (url, proxyConfiguration, headerGenerator) => {
         url,
         headers,
         responseType: 'text',
-        timeout: { request: 35000 },
+        timeout: { request: REQUEST_TIMEOUT_MS },
         http2: true,
         retry: { limit: 1 },
     };
 
     if (proxyConfiguration) {
-        requestOptions.proxyUrl = await proxyConfiguration.newUrl();
+        const proxyUrl = await proxyConfiguration.newUrl();
+        if (proxyUrl) requestOptions.proxyUrl = proxyUrl;
     }
 
     const response = await gotScraping(requestOptions);
@@ -575,6 +621,11 @@ const extractTmdbContentData = ($, contentType) => {
 };
 
 const pushWebContentRecord = async (listingItem, detailData, contentType, stats) => {
+    const genreList = formatList(detailData.genres);
+    const networks = formatList(detailData.networks);
+    const createdBy = formatList(detailData.createdBy);
+    const episodeRunTime = formatList(detailData.episodeRunTime);
+
     const record = {
         data_type: 'content',
         source: 'tmdb_web',
@@ -586,7 +637,7 @@ const pushWebContentRecord = async (listingItem, detailData, contentType, stats)
         poster_path: detailData.posterPath || listingItem.poster,
         backdrop_path: detailData.backdropPath,
         fetchedAt: new Date().toISOString(),
-        genres: detailData.genres,
+        genres: genreList,
         ...(contentType === 'movie'
             ? { release_date: detailData.releaseDate || listingItem.releaseDate }
             : {
@@ -594,10 +645,10 @@ const pushWebContentRecord = async (listingItem, detailData, contentType, stats)
                 last_air_date: detailData.lastAirDate,
                 number_of_seasons: detailData.numberOfSeasons,
                 number_of_episodes: detailData.numberOfEpisodes,
-                episode_run_time: detailData.episodeRunTime,
+                episode_run_time: episodeRunTime,
                 status: detailData.status,
-                networks: detailData.networks,
-                created_by: detailData.createdBy,
+                networks,
+                created_by: createdBy,
             }),
     };
 
@@ -731,7 +782,6 @@ await Actor.main(async () => {
 
     const {
         apiKey,
-        apiKeys = [],
         useApiFirst = true,
         contentType = 'tv',
         searchQueries = [],
@@ -752,25 +802,12 @@ await Actor.main(async () => {
         maxDelayMs = 3000,
         peopleQuery,
         peopleResultsWanted = 10,
+        proxyConfiguration,
+        maxConcurrency = 1,
+        requestTimeoutSecs = 35,
     } = input;
 
-    const apiKeyPool = [
-        ...(typeof apiKey === 'string' && apiKey.trim() ? [apiKey.trim()] : []),
-        ...parseStringList(apiKeys),
-    ].filter((key, index, arr) => arr.indexOf(key) === index);
-
-    let apiKeyIndex = apiKeyPool.length ? 0 : -1;
-    let activeApiKey = apiKeyIndex >= 0 ? apiKeyPool[apiKeyIndex] : null;
-
-    const rotateApiKey = () => {
-        if (apiKeyIndex === -1) return false;
-        const nextIndex = apiKeyIndex + 1;
-        if (nextIndex >= apiKeyPool.length) return false;
-        apiKeyIndex = nextIndex;
-        activeApiKey = apiKeyPool[apiKeyIndex];
-        log.warning(`Switching to backup TMDb API key #${apiKeyIndex + 1}`);
-        return true;
-    };
+    const activeApiKey = typeof apiKey === 'string' && apiKey.trim() ? apiKey.trim() : null;
 
     const delayRange = { minDelayMs, maxDelayMs };
     const extrasConfig = {
@@ -782,6 +819,10 @@ await Actor.main(async () => {
         maxReviewsPerContent,
         maxImagesPerContent,
     };
+
+    const concurrencyLimit = Math.max(1, Number(maxConcurrency) || 1);
+    const timeoutSecs = Number(requestTimeoutSecs);
+    REQUEST_TIMEOUT_MS = Math.max(5000, Number.isFinite(timeoutSecs) ? timeoutSecs * 1000 : 35000);
 
     const normalizedSearchQueries = parseStringList(searchQueries);
     const normalizedPeopleQuery = parseStringList(peopleQuery);
@@ -811,7 +852,12 @@ await Actor.main(async () => {
         sortBy,
     };
 
-    const proxyConfiguration = await Actor.createProxyConfiguration(DEFAULT_PROXY_OPTIONS);
+    let proxyConfigurationInstance = null;
+    try {
+        proxyConfigurationInstance = await Actor.createProxyConfiguration(proxyConfiguration ?? { useApifyProxy: true });
+    } catch (error) {
+        log.warning(`Proxy configuration failed (${error.message}), continuing without proxy.`);
+    }
     const headerGenerator = new HeaderGenerator({
         browsers: [{ name: 'chrome', minVersion: 120, maxVersion: 130 }],
         devices: ['desktop'],
@@ -856,33 +902,25 @@ await Actor.main(async () => {
             let collected = 0;
 
             if (apiAvailable) {
-                let retryWithNextKey = false;
-                do {
-                    retryWithNextKey = false;
-                    try {
-                        collected = await collectContentWithApi({
-                            apiKey: activeApiKey,
-                            contentType: type,
-                            query,
-                            discoverFilters,
-                            limit: limitForQuery,
-                            maxPages: pages,
-                            delayRange,
-                            extrasConfig,
-                            stats,
-                        });
-                        remainingResults = Math.max(0, remainingResults - collected);
-                    } catch (error) {
-                        stats.apiFailures += 1;
-                        log.exception(error, 'TMDb API failed.');
-                        if (rotateApiKey()) {
-                            log.info('Retrying with backup TMDb API key...');
-                            retryWithNextKey = true;
-                        } else {
-                            apiAvailable = false;
-                        }
-                    }
-                } while (retryWithNextKey);
+                try {
+                    collected = await collectContentWithApi({
+                        apiKey: activeApiKey,
+                        contentType: type,
+                        query,
+                        discoverFilters,
+                        limit: limitForQuery,
+                        maxPages: pages,
+                        delayRange,
+                        extrasConfig,
+                        stats,
+                        maxConcurrency: concurrencyLimit,
+                    });
+                    remainingResults = Math.max(0, remainingResults - collected);
+                } catch (error) {
+                    stats.apiFailures += 1;
+                    apiAvailable = false;
+                    log.exception(error, 'TMDb API failed, switching to website scraping for remaining work.');
+                }
             }
 
             if (!apiAvailable) {
@@ -893,7 +931,7 @@ await Actor.main(async () => {
                     limit: Math.max(0, limitForQuery - collected),
                     delayRange,
                     stats,
-                    proxyConfiguration,
+                    proxyConfiguration: proxyConfigurationInstance,
                     headerGenerator,
                 });
                 collected += webCollected;
