@@ -840,9 +840,7 @@ await Actor.main(async () => {
         maxDelayMs = 3000,
         peopleQuery,
         peopleResultsWanted = 10,
-        useDataCenterProxies = true,
-        proxyGroups = ['GOOGLE_SERP', 'BUYPROXIES94952'],
-        proxyCountry = '',
+        proxyConfiguration,
         maxConcurrency = 1,
         requestTimeoutSecs = 35,
     } = input;
@@ -894,26 +892,7 @@ await Actor.main(async () => {
 
     let proxyConfigurationInstance = null;
     try {
-        // Build proxy configuration from individual fields
-        const proxyConfig = {};
-        
-        // Apply individual proxy settings
-        if (useDataCenterProxies !== undefined) {
-            proxyConfig.useApifyProxy = useDataCenterProxies;
-        }
-        if (proxyGroups && proxyGroups.length > 0) {
-            proxyConfig.groups = proxyGroups;
-        }
-        if (proxyCountry && proxyCountry.trim()) {
-            proxyConfig.countryCode = proxyCountry.trim();
-        }
-        
-        // Ensure we have a default proxy configuration if none provided
-        if (!proxyConfig.useApifyProxy && !proxyConfig.groups && !proxyConfig.countryCode) {
-            proxyConfig.useApifyProxy = true;
-        }
-        
-        proxyConfigurationInstance = await Actor.createProxyConfiguration(proxyConfig);
+        proxyConfigurationInstance = await Actor.createProxyConfiguration(proxyConfiguration ?? { useApifyProxy: true });
     } catch (error) {
         log.warning(`Proxy configuration failed (${error.message}), continuing without proxy.`);
     }

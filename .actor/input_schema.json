@@ -170,29 +170,15 @@
       "default": 10,
       "editor": "number"
     },
-    "useDataCenterProxies": {
-      "title": "Use Data Center Proxies",
-      "type": "boolean",
-      "description": "Use data center proxies for faster and cheaper scraping. Recommended for most use cases.",
-      "editor": "checkbox",
-      "default": true
-    },
-    "proxyGroups": {
-      "title": "Proxy Groups",
-      "type": "array",
-      "description": "Specific proxy groups to use. Leave empty to use default data center groups.",
-      "items": {
-        "type": "string"
-      },
-      "editor": "stringArray",
-      "default": ["GOOGLE_SERP", "BUYPROXIES94952"]
-    },
-    "proxyCountry": {
-      "title": "Proxy Country",
-      "type": "string",
-      "description": "Country code for proxies (e.g., 'US', 'GB', 'DE'). Leave empty for automatic selection.",
-      "editor": "textfield",
-      "default": ""
+    "proxyConfiguration": {
+      "title": "Proxy configuration",
+      "type": "object",
+      "description": "Use Apify Proxy (datacenter recommended for TMDb).",
+      "editor": "proxy",
+      "default": {
+        "useApifyProxy": true,
+        "apifyProxyGroups": ["RESIDENTIAL"]
+      }
     },
     "maxConcurrency": {
       "title": "Parallel Requests",
@@ -209,15 +195,6 @@
       "minimum": 5,
       "default": 35,
       "editor": "number"
-    },
-    "proxyConfiguration": {
-      "title": "Proxy configuration",
-      "type": "object",
-      "description": "Advanced proxy configuration. Defaults to Apify Proxy if not provided.",
-      "editor": "proxy",
-      "default": {
-        "useApifyProxy": true
-      }
     }
   },
   "required": [],

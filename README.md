@@ -73,14 +73,6 @@ This actor collects movies, TV shows, people, reviews, keywords, images, and col
 | `peopleQuery` | String | Search term for people data collection. | - |
 | `peopleResultsWanted` | Integer | Maximum number of people to collect. | 10 |
 
-### Proxy Configuration
-
-| Parameter | Type | Description | Default |
-|-----------|------|-------------|---------|
-| `useDataCenterProxies` | Boolean | Use data center proxies for faster and cheaper scraping. Recommended for most use cases. | `true` |
-| `proxyGroups` | Array | Specific proxy groups to use. Leave empty to use default data center groups. | `["GOOGLE_SERP", "BUYPROXIES94952"]` |
-| `proxyCountry` | String | Country code for proxies (e.g., 'US', 'GB', 'DE'). Leave empty for automatic selection. | `""` |
-
 ## 🚀 Usage Examples
 
 ### Basic Movie Collection
