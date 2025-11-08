@@ -25,6 +25,32 @@ const randomDelay = async (min, max) => {
     if (duration > 0) await sleep(duration);
 };
 
+const parseStringList = (value) => {
+    if (Array.isArray(value)) {
+        return value
+            .map((item) => {
+                if (typeof item === 'string') return item.trim();
+                if (typeof item === 'number' && Number.isFinite(item)) return String(item);
+                return '';
+            })
+            .filter(Boolean);
+    }
+    if (typeof value === 'string') {
+        return value
+            .split(',')
+            .map((item) => item.trim())
+            .filter(Boolean);
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return [String(value)];
+    }
+    return [];
+};
+
+const parseNumberList = (value) => parseStringList(value)
+    .map((item) => Number(item))
+    .filter((num) => Number.isFinite(num));
+
 const limitArray = (items = [], limit = items.length) => {
     if (!Array.isArray(items) || limit <= 0) return [];
     return items.slice(0, Math.max(0, limit));
@@ -705,6 +731,7 @@ await Actor.main(async () => {
 
     const {
         apiKey,
+        apiKeys = [],
         useApiFirst = true,
         contentType = 'tv',
         searchQueries = [],
@@ -727,6 +754,24 @@ await Actor.main(async () => {
         peopleResultsWanted = 10,
     } = input;
 
+    const apiKeyPool = [
+        ...(typeof apiKey === 'string' && apiKey.trim() ? [apiKey.trim()] : []),
+        ...parseStringList(apiKeys),
+    ].filter((key, index, arr) => arr.indexOf(key) === index);
+
+    let apiKeyIndex = apiKeyPool.length ? 0 : -1;
+    let activeApiKey = apiKeyIndex >= 0 ? apiKeyPool[apiKeyIndex] : null;
+
+    const rotateApiKey = () => {
+        if (apiKeyIndex === -1) return false;
+        const nextIndex = apiKeyIndex + 1;
+        if (nextIndex >= apiKeyPool.length) return false;
+        apiKeyIndex = nextIndex;
+        activeApiKey = apiKeyPool[apiKeyIndex];
+        log.warning(`Switching to backup TMDb API key #${apiKeyIndex + 1}`);
+        return true;
+    };
+
     const delayRange = { minDelayMs, maxDelayMs };
     const extrasConfig = {
         collectPeople,
@@ -738,8 +783,12 @@ await Actor.main(async () => {
         maxImagesPerContent,
     };
 
+    const normalizedSearchQueries = parseStringList(searchQueries);
+    const normalizedPeopleQuery = parseStringList(peopleQuery);
+    const normalizedGenreIds = parseNumberList(genreIds);
+
     const stats = {
-        mode: apiKey && useApiFirst ? 'api-first' : 'web-only',
+        mode: activeApiKey && useApiFirst ? 'api-first' : 'web-only',
         contents: 0,
         extraItems: 0,
         apiFailures: 0,
@@ -751,12 +800,12 @@ await Actor.main(async () => {
             ? []
             : [contentType];
 
-    const effectiveQueries = Array.isArray(searchQueries) && searchQueries.length
-        ? searchQueries
+    const effectiveQueries = normalizedSearchQueries.length
+        ? normalizedSearchQueries
         : [null]; // null indicates discover mode
 
     const discoverFilters = {
-        genreIds,
+        genreIds: normalizedGenreIds,
         yearFrom,
         yearTo,
         sortBy,
@@ -769,10 +818,27 @@ await Actor.main(async () => {
         operatingSystems: ['windows', 'macos'],
     });
 
-    let apiAvailable = Boolean(apiKey) && useApiFirst;
+    let apiAvailable = Boolean(activeApiKey) && useApiFirst;
+    const extrasRequireApi = extrasConfig.collectPeople
+        || extrasConfig.collectReviews
+        || extrasConfig.collectKeywords
+        || extrasConfig.collectImages
+        || extrasConfig.collectCollections;
+
+    if (extrasRequireApi && !activeApiKey) {
+        log.warning('Detailed extras (people/reviews/keywords/images/collections) require a TMDb API key. Requested extras will be skipped.');
+    }
+
+    const maxResults = Number.isFinite(Number(resultsWanted)) && Number(resultsWanted) > 0
+        ? Number(resultsWanted)
+        : Number.MAX_SAFE_INTEGER;
+    let remainingResults = maxResults;
 
     for (const type of requestedContentTypes) {
+        if (remainingResults <= 0) break;
         for (const query of effectiveQueries) {
+            if (remainingResults <= 0) break;
+
             const limit = Number.isFinite(Number(resultsWanted)) && Number(resultsWanted) > 0
                 ? Number(resultsWanted)
                 : Number.MAX_SAFE_INTEGER;
@@ -782,58 +848,73 @@ await Actor.main(async () => {
                 : 1;
 
             const label = query ? `query "${query}"` : 'discover mode';
-            log.info(`Processing ${type} :: ${label} :: limit ${limit}`);
+            const limitForQuery = Math.min(remainingResults, limit);
+            if (limitForQuery <= 0) break;
+
+            log.info(`Processing ${type} :: ${label} :: limit ${limitForQuery}`);
 
             let collected = 0;
 
             if (apiAvailable) {
-                try {
-                    collected = await collectContentWithApi({
-                        apiKey,
-                        contentType: type,
-                        query,
-                        discoverFilters,
-                        limit,
-                        maxPages: pages,
-                        delayRange,
-                        extrasConfig,
-                        stats,
-                    });
-                } catch (error) {
-                    stats.apiFailures += 1;
-                    apiAvailable = false;
-                    log.exception(error, 'TMDb API failed, switching to website scraping for remaining work.');
-                }
+                let retryWithNextKey = false;
+                do {
+                    retryWithNextKey = false;
+                    try {
+                        collected = await collectContentWithApi({
+                            apiKey: activeApiKey,
+                            contentType: type,
+                            query,
+                            discoverFilters,
+                            limit: limitForQuery,
+                            maxPages: pages,
+                            delayRange,
+                            extrasConfig,
+                            stats,
+                        });
+                        remainingResults = Math.max(0, remainingResults - collected);
+                    } catch (error) {
+                        stats.apiFailures += 1;
+                        log.exception(error, 'TMDb API failed.');
+                        if (rotateApiKey()) {
+                            log.info('Retrying with backup TMDb API key...');
+                            retryWithNextKey = true;
+                        } else {
+                            apiAvailable = false;
+                        }
+                    }
+                } while (retryWithNextKey);
             }
 
             if (!apiAvailable) {
-                await collectContentWithWeb({
+                const webCollected = await collectContentWithWeb({
                     contentType: type,
                     query,
                     discoverFilters,
-                    limit: limit - collected,
+                    limit: Math.max(0, limitForQuery - collected),
                     delayRange,
                     stats,
                     proxyConfiguration,
                     headerGenerator,
                 });
+                collected += webCollected;
+                remainingResults = Math.max(0, remainingResults - webCollected);
             }
         }
     }
 
     if (contentType === 'person' || peopleQuery) {
-        if (!apiKey) {
+        if (!activeApiKey) {
             log.warning('People collection requires a TMDb API key. Skipping people data.');
         } else {
-            const queries = contentType === 'person' && Array.isArray(searchQueries) && searchQueries.length
-                ? searchQueries
-                : [peopleQuery].filter(Boolean);
+            const queries = contentType === 'person' && normalizedSearchQueries.length
+                ? normalizedSearchQueries
+                : normalizedPeopleQuery;
 
             for (const query of queries) {
                 if (!query) continue;
                 log.info(`Collecting people data for "${query}"`);
                 await collectPeopleWithApi({
-                    apiKey,
+                    apiKey: activeApiKey,
                     query,
                     limit: peopleResultsWanted,
                     delayRange,

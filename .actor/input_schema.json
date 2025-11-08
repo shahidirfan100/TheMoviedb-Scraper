@@ -11,6 +11,15 @@
       "editor": "textfield",
       "isSecret": true
     },
+    "apiKeys": {
+      "title": "Additional TMDb API Keys",
+      "type": "array",
+      "description": "Optional list of backup TMDb API keys. The actor uses the primary key first and automatically falls back to the next key if the current one fails.",
+      "items": {
+        "type": "string"
+      },
+      "editor": "json"
+    },
     "useApiFirst": {
       "title": "Use API First (when available)",
       "type": "boolean",
