@@ -170,17 +170,7 @@
       "default": 10,
       "editor": "number"
     },
-    "proxyConfiguration": {
-      "title": "Proxy configuration",
-      "type": "object",
-      "description": "Use Apify Proxy (datacenter recommended for TMDb).",
-      "editor": "proxy",
-      "default": {
-        "useApifyProxy": true,
-        "apifyProxyGroups": ["RESIDENTIAL"]
-      }
-    },
-    "maxConcurrency": {
+        "maxConcurrency": {
       "title": "Parallel Requests",
       "type": "integer",
       "description": "Maximum number of TMDb API detail fetches and fallback detail page requests processed in parallel. Raise cautiously to speed up scraping.",
@@ -195,6 +185,16 @@
       "minimum": 5,
       "default": 35,
       "editor": "number"
+    },
+    "proxyConfiguration": {
+      "title": "Proxy configuration",
+      "type": "object",
+      "description": "Use Apify Proxy (datacenter recommended for TMDb).",
+      "editor": "proxy",
+      "default": {
+        "useApifyProxy": true,
+        "apifyProxyGroups": ["RESIDENTIAL"]
+      }
     }
   },
   "required": [],

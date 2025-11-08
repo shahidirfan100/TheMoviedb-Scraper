@@ -675,7 +675,17 @@ const collectContentWithWeb = async ({
     const seenIds = new Set();
     const effectiveConcurrency = Math.max(1, Number(concurrency) || 1);
 
-    const resolveNextUrl = ($) => {
+    const resolveNextUrl = ($, currentUrl) => {
+        const infiniteDiv = $('[id^="pagination_page_"][data-next-page]').first();
+        if (infiniteDiv.length) {
+            const nextPage = infiniteDiv.attr('data-next-page');
+            if (nextPage) {
+                const urlObj = new URL(currentUrl);
+                urlObj.searchParams.set('page', nextPage);
+                return urlObj.href;
+            }
+        }
+
         const selectors = [
             'a[rel="next"]',
             '.pagination a[rel="next"]',
@@ -704,7 +714,7 @@ const collectContentWithWeb = async ({
 
     while (nextUrl && saved < limit) {
         log.info(`TMDb web scraping ${contentType} page ${page} :: ${nextUrl}`);
-        const { page$ } = await fetchWebPage(nextUrl, proxyConfiguration, headerGenerator);
+        const { page$, finalUrl } = await fetchWebPage(nextUrl, proxyConfiguration, headerGenerator);
         const items = extractListingItems(page$, contentType);
         if (!items.length) break;
 
@@ -732,7 +742,7 @@ const collectContentWithWeb = async ({
             saved += results.reduce((sum, val) => sum + val, 0);
         }
 
-        nextUrl = resolveNextUrl(page$);
+        nextUrl = resolveNextUrl(page$, finalUrl);
         page += 1;
     }
 
