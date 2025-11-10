@@ -407,11 +407,14 @@ const collectContentWithApi = async ({
     extrasConfig,
     stats,
     maxConcurrency = 1,
+    startPage = 1,
 }) => {
     let saved = 0;
     const concurrency = Math.max(1, Number(maxConcurrency) || 1);
+    let lastPage = startPage - 1;
 
-    for (let page = 1; page <= maxPages && saved < limit; page += 1) {
+    for (let page = startPage; page <= maxPages && saved < limit; page += 1) {
+        lastPage = page;
         const params = query
             ? { query, page, include_adult: false }
             : buildDiscoverParams(contentType, discoverFilters, page);
@@ -459,7 +462,7 @@ const collectContentWithApi = async ({
 
         if ((response.total_pages ?? 1) <= page) break;
     }
-    return saved;
+    return { collected: saved, lastPage };
 };
 
 const buildWebListingUrl = ({ contentType, query, discoverFilters, page }) => {
@@ -666,14 +669,16 @@ const collectContentWithWeb = async ({
     proxyConfiguration,
     headerGenerator,
     concurrency = 1,
+    startPage = 1,
 }) => {
-    if (!limit || limit <= 0) return 0;
+    if (!limit || limit <= 0) return { collected: 0, lastPage: startPage - 1 };
 
     let saved = 0;
-    let page = 1;
+    let page = startPage;
     let nextUrl = buildWebListingUrl({ contentType, query, discoverFilters: discoverFilters ?? {}, page });
     const seenIds = new Set();
     const effectiveConcurrency = Math.max(1, Number(concurrency) || 1);
+    let lastPage = startPage - 1;
 
     const resolveNextUrl = ($, currentUrl) => {
         const infiniteDiv = $('[id^="pagination_page_"][data-next-page]').first();
@@ -713,6 +718,7 @@ const collectContentWithWeb = async ({
     };
 
     while (nextUrl && saved < limit) {
+        lastPage = page;
         log.info(`TMDb web scraping ${contentType} page ${page} :: ${nextUrl}`);
         const { page$, finalUrl } = await fetchWebPage(nextUrl, proxyConfiguration, headerGenerator);
         const items = extractListingItems(page$, contentType);
@@ -746,7 +752,7 @@ const collectContentWithWeb = async ({
         page += 1;
     }
 
-    return saved;
+    return { collected: saved, lastPage };
 };
 
 const collectPeopleWithApi = async ({
@@ -755,12 +761,15 @@ const collectPeopleWithApi = async ({
     limit,
     delayRange,
     stats,
+    startPage = 1,
 }) => {
-    if (!query) return;
+    if (!query) return { collected: 0, lastPage: startPage - 1 };
     let collected = 0;
-    let page = 1;
+    let page = startPage;
+    let lastPage = startPage - 1;
 
     while (collected < limit && page <= MAX_PERSON_PAGES) {
+        lastPage = page;
         const response = await tmdbApiRequest({
             path: '/search/person',
             apiKey,
@@ -823,10 +832,35 @@ const collectPeopleWithApi = async ({
         if ((response.total_pages ?? 1) <= page) break;
         page += 1;
     }
+    return { collected, lastPage };
 };
 
 await Actor.main(async () => {
     const input = (await Actor.getInput()) ?? {};
+
+    const stateKey = 'scraper_state';
+    let state = (await Actor.getValue(stateKey)) || {
+        currentType: null,
+        currentQuery: null,
+        currentPage: 1,
+        collectedForCurrent: 0,
+        apiAvailable: true,
+        peopleCurrentQuery: null,
+        peoplePage: 1,
+        peopleCollected: 0,
+    };
+
+    // Handle graceful shutdown for resumability
+    process.on('SIGTERM', async () => {
+        log.info('Received SIGTERM, saving current state for resumption');
+        await Actor.setValue(stateKey, state);
+        process.exit(0);
+    });
+    process.on('SIGINT', async () => {
+        log.info('Received SIGINT, saving current state for resumption');
+        await Actor.setValue(stateKey, state);
+        process.exit(0);
+    });
 
     const {
         apiKey,
@@ -893,6 +927,11 @@ await Actor.main(async () => {
         ? normalizedSearchQueries
         : [null]; // null indicates discover mode
 
+    let resuming = state.currentType !== null;
+    if (resuming) {
+        log.info(`Resuming from saved state: type ${state.currentType}, query ${state.currentQuery}, page ${state.currentPage}`);
+    }
+
     const discoverFilters = {
         genreIds: normalizedGenreIds,
         yearFrom,
@@ -929,9 +968,19 @@ await Actor.main(async () => {
     let remainingResults = maxResults;
 
     for (const type of requestedContentTypes) {
-        if (remainingResults <= 0) break;
+        if (resuming && type !== state.currentType) continue;
+        resuming = false;
+        state.currentType = type;
+        state.currentQuery = null;
+        state.currentPage = 1;
+        state.collectedForCurrent = 0;
+        await Actor.setValue(stateKey, state);
+
+        let queryResuming = state.currentQuery !== null;
         for (const query of effectiveQueries) {
             if (remainingResults <= 0) break;
+            if (queryResuming && query !== state.currentQuery) continue;
+            queryResuming = false;
 
             const limit = Number.isFinite(Number(resultsWanted)) && Number(resultsWanted) > 0
                 ? Number(resultsWanted)
@@ -942,16 +991,24 @@ await Actor.main(async () => {
                 : 1;
 
             const label = query ? `query "${query}"` : 'discover mode';
-            const limitForQuery = Math.min(remainingResults, limit);
-            if (limitForQuery <= 0) break;
+            const limitForQuery = Math.min(remainingResults, limit) - state.collectedForCurrent;
+            if (limitForQuery <= 0) {
+                state.collectedForCurrent = 0;
+                continue;
+            }
 
             log.info(`Processing ${type} :: ${label} :: limit ${limitForQuery}`);
 
+            state.currentQuery = query;
+            state.currentPage = 1;
+            await Actor.setValue(stateKey, state);
+
             let collected = 0;
+            let startPage = state.currentPage;
 
             if (apiAvailable) {
                 try {
-                    collected = await collectContentWithApi({
+                    const result = await collectContentWithApi({
                         apiKey: activeApiKey,
                         contentType: type,
                         query,
@@ -962,29 +1019,40 @@ await Actor.main(async () => {
                         extrasConfig,
                         stats,
                         maxConcurrency: concurrencyLimit,
+                        startPage,
                     });
+                    collected += result.collected;
+                    state.currentPage = result.lastPage;
+                    state.collectedForCurrent += collected;
+                    await Actor.setValue(stateKey, state);
                     remainingResults = Math.max(0, remainingResults - collected);
                 } catch (error) {
                     stats.apiFailures += 1;
                     apiAvailable = false;
+                    state.apiAvailable = false;
+                    await Actor.setValue(stateKey, state);
                     log.exception(error, 'TMDb API failed, switching to website scraping for remaining work.');
                 }
             }
 
             if (!apiAvailable) {
-                const webCollected = await collectContentWithWeb({
+                const result = await collectContentWithWeb({
                     contentType: type,
                     query,
                     discoverFilters,
-                    limit: Math.max(0, limitForQuery - collected),
+                    limit: limitForQuery,
                     delayRange,
                     stats,
                     proxyConfiguration: proxyConfigurationInstance,
                     headerGenerator,
                     concurrency: concurrencyLimit,
+                    startPage,
                 });
-                collected += webCollected;
-                remainingResults = Math.max(0, remainingResults - webCollected);
+                collected += result.collected;
+                state.currentPage = result.lastPage;
+                state.collectedForCurrent += collected;
+                await Actor.setValue(stateKey, state);
+                remainingResults = Math.max(0, remainingResults - collected);
             }
         }
     }
@@ -997,16 +1065,27 @@ await Actor.main(async () => {
                 ? normalizedSearchQueries
                 : normalizedPeopleQuery;
 
+            let peopleResuming = state.peopleCurrentQuery !== null;
             for (const query of queries) {
+                if (peopleResuming && query !== state.peopleCurrentQuery) continue;
+                peopleResuming = false;
                 if (!query) continue;
                 log.info(`Collecting people data for "${query}"`);
-                await collectPeopleWithApi({
+                state.peopleCurrentQuery = query;
+                state.peoplePage = 1;
+                state.peopleCollected = 0;
+                await Actor.setValue(stateKey, state);
+                const result = await collectPeopleWithApi({
                     apiKey: activeApiKey,
                     query,
                     limit: peopleResultsWanted,
                     delayRange,
                     stats,
+                    startPage: state.peoplePage,
                 });
+                state.peoplePage = result.lastPage;
+                state.peopleCollected += result.collected;
+                await Actor.setValue(stateKey, state);
             }
         }
     }
@@ -1014,4 +1093,5 @@ await Actor.main(async () => {
     const summary = `Completed with ${stats.contents} content items and ${stats.extraItems} auxiliary records.`;
     log.info(summary);
     await Actor.setStatusMessage(summary);
+    await Actor.setValue(stateKey, null); // Clear state on completion
 });
