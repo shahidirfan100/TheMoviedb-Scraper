@@ -1,12 +1,13 @@
 {
   "actorSpecification": 1,
-  "name": "tmdb-movie-scraper",
+  "name": "tmdb-comprehensive-scraper",
   "version": "1.0.0",
   "buildTag": "latest",
   "dockerfile": "./Dockerfile",
   "readme": "../README.md",
   "input": "./input_schema.json",
   "nodeJsVersion": "22",
+  "description": "Scrape comprehensive movie, TV show, and people data from The Movie Database (TMDb). Supports API access with fallback to website scraping.",
   "storages": {
     "dataset": "./dataset_schema.json"
   }

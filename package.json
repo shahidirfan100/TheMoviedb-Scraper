@@ -1,7 +1,7 @@
 {
-  "name": "tmdb-tv-scraper",
+  "name": "tmdb-comprehensive-scraper",
   "version": "1.0.0",
-  "description": "Scrape TV show data from The Movie Database (TMDb) API with TMDb website fallback.",
+  "description": "Production-ready Apify actor for collecting comprehensive data from The Movie Database (TMDb) with automatic fallback scraping capabilities.",
   "type": "module",
   "scripts": {
     "start": "node src/main.js"
