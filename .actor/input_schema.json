@@ -64,9 +64,9 @@
       "type": "integer",
       "description": "Maximum number of content items to collect per search query.",
       "minimum": 1,
-      "default": 100,
+      "default": 5,
       "editor": "number",
-      "prefill": 10
+      "prefill": 5
     },
     "maxPages": {
       "title": "Maximum Pages",

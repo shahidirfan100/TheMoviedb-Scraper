@@ -40,11 +40,11 @@ Configure the scraper using the following input parameters to tailor the data ex
 | `apiKey` | String | Your TMDb API key for enhanced reliability and speed. Obtain one from [TMDb](https://www.themoviedb.org/settings/api). | `YOUR_TMDB_API_KEY_HERE` |
 | `useApiFirst` | Boolean | Prioritize the TMDb API over web scraping. | `true` |
 | `contentType` | String | Type of content to scrape: `movie`, `tv`, or `person`. | `tv` |
-| `searchQueries` | Array | List of search terms for content queries. | `[]` |
-| `genreIds` | Array | Genre IDs to filter results (e.g., [28] for Action). | `[]` |
+| `searchQueries` | String | Comma-separated list of search terms for content queries. | `""` |
+| `genreIds` | String | Comma-separated genre IDs to filter results (e.g., "28" for Action). | `""` |
 | `yearFrom` | Integer | Starting year for release date filtering. |  |
 | `yearTo` | Integer | Ending year for release date filtering. |  |
-| `resultsWanted` | Integer | Maximum number of main results to return. | `10` |
+| `resultsWanted` | Integer | Maximum number of main results to return. | `5` |
 | `maxPages` | Integer | Maximum pages to scrape from search results. | `3` |
 | `sortBy` | String | Sorting criteria (e.g., `popularity.desc`, `vote_average.desc`). | `popularity.desc` |
 | `collectPeople` | Boolean | Include cast and crew information. | `true` |
@@ -57,7 +57,7 @@ Configure the scraper using the following input parameters to tailor the data ex
 | `minDelayMs` | Integer | Minimum delay between requests (ms). | `1000` |
 | `maxDelayMs` | Integer | Maximum delay between requests (ms). | `3000` |
 | `peopleQuery` | String | Search term for people (when contentType is `person`). |  |
-| `peopleResultsWanted` | Integer | Maximum people results to return. | `10` |
+| `peopleResultsWanted` | Integer | Maximum people results to return. | `3` |
 
 ## 📤 Output Data
 
@@ -123,7 +123,7 @@ The scraper outputs structured JSON data for each scraped item. Below are exampl
   "yearFrom": 2024,
   "yearTo": 2024,
   "sortBy": "popularity.desc",
-  "resultsWanted": 50,
+  "resultsWanted": 5,
   "collectReviews": true,
   "collectImages": true
 }
@@ -145,7 +145,7 @@ The scraper outputs structured JSON data for each scraped item. Below are exampl
 {
   "contentType": "person",
   "peopleQuery": "Leonardo DiCaprio",
-  "peopleResultsWanted": 5
+  "peopleResultsWanted": 3
 }
 ```
 
@@ -153,9 +153,9 @@ The scraper outputs structured JSON data for each scraped item. Below are exampl
 ```json
 {
   "contentType": "movie",
-  "genreIds": [28],
+  "genreIds": "28",
   "sortBy": "vote_average.desc",
-  "resultsWanted": 20,
+  "resultsWanted": 5,
   "collectKeywords": true
 }
 ```

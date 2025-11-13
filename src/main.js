@@ -856,8 +856,8 @@ await Actor.main(async () => {
     if (input.resultsWanted !== undefined && input.resultsWanted !== null) {
         const val = Number(input.resultsWanted);
         if (!Number.isFinite(val) || val < 1) {
-            log.warning(`Invalid resultsWanted: ${input.resultsWanted}. Using default: 100`);
-            input.resultsWanted = 100;
+            log.warning(`Invalid resultsWanted: ${input.resultsWanted}. Using default: 5`);
+            input.resultsWanted = 5;
         }
     }
 
@@ -908,7 +908,7 @@ await Actor.main(async () => {
         genreIds = [],
         yearFrom,
         yearTo,
-        resultsWanted = 100,
+        resultsWanted = 5,
         maxPages = 5,
         sortBy = 'popularity.desc',
         collectPeople = false,
@@ -921,7 +921,7 @@ await Actor.main(async () => {
         minDelayMs = 1000,
         maxDelayMs = 3000,
         peopleQuery,
-        peopleResultsWanted = 10,
+        peopleResultsWanted = 3,
         proxyConfiguration,
         maxConcurrency = 10,
         requestTimeoutSecs = 35,
@@ -1024,8 +1024,8 @@ await Actor.main(async () => {
     }
 
     const maxResults = Number.isFinite(Number(resultsWanted)) && Number(resultsWanted) > 0
-        ? Number(resultsWanted)
-        : Number.MAX_SAFE_INTEGER;
+        ? Math.min(Number(resultsWanted), 100) // Cap at 100 to prevent runaway
+        : 5; // Default to 5 if invalid
     let remainingResults = maxResults;
 
     for (const type of requestedContentTypes) {
@@ -1045,7 +1045,7 @@ await Actor.main(async () => {
 
             const limit = Number.isFinite(Number(resultsWanted)) && Number(resultsWanted) > 0
                 ? Number(resultsWanted)
-                : Number.MAX_SAFE_INTEGER;
+                : 5;
 
             const pages = Number.isFinite(Number(maxPages)) && Number(maxPages) > 0
                 ? Number(maxPages)
