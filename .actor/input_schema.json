@@ -1,15 +1,16 @@
 {
   "title": "TMDb Comprehensive Scraper",
-  "description": "Scrape comprehensive movie, TV show, and peopl...(TMDb). Supports API access with fallback to website scraping.",
+  "description": "Scrape comprehensive movie, TV show, and people data from The Movie Database (TMDb). Supports API access with fallback to website scraping.",
   "type": "object",
   "schemaVersion": 1,
   "properties": {
     "apiKey": {
       "title": "TMDb API Key (Optional)",
       "type": "string",
-      "description": "Your TMDb API key (v3 auth). If provided, ...e scraping. Get one at https://www.themoviedb.org/settings/api",
+      "description": "Your TMDb API key (v3 auth). If provided, uses TMDb API for fast and reliable data extraction with fallback to website scraping. Get one at https://www.themoviedb.org/settings/api",
       "editor": "textfield",
-      "isSecret": true
+      "isSecret": true,
+      "example": "YOUR_TMDB_API_KEY_HERE"
     },
     "useApiFirst": {
       "title": "Use API First (when available)",
@@ -35,25 +36,28 @@
     "searchQueries": {
       "title": "Search Queries",
       "type": "string",
-      "description": "Comma-separated list of search terms to query TMDb for. Each query will be searched separately.",
+      "description": "Comma-separated list of search terms to query TMDb for. Each query will be searched separately. Leave empty to use discover mode with filters.",
       "editor": "textfield",
       "default": "",
-      "prefill": ""
+      "prefill": "",
+      "example": "Breaking Bad,Game of Thrones,Inception"
     },
     "genreIds": {
       "title": "Genre IDs",
       "type": "string",
-      "description": "Comma-separated TMDb genre IDs to filter by. F... For TV: 10759=Action&Adventure, 16=Animation, 35=Comedy, etc.",
+      "description": "Comma-separated TMDb genre IDs to filter by. For Movies: 28=Action, 12=Adventure, 16=Animation, 35=Comedy, 18=Drama, 27=Horror, 878=Science Fiction, 53=Thriller. For TV: 10759=Action&Adventure, 16=Animation, 35=Comedy, etc.",
       "editor": "textfield",
       "default": "",
-      "prefill": ""
+      "prefill": "",
+      "example": "28,12,878"
     },
     "peopleQuery": {
       "title": "People Search Query (Optional)",
       "type": "string",
       "description": "Optional comma-separated list of people search terms, to collect people data via API (if API key provided).",
       "editor": "textfield",
-      "default": ""
+      "default": "",
+      "example": "Leonardo DiCaprio,Tom Hanks"
     },
     "resultsWanted": {
       "title": "Maximum Results",
@@ -169,9 +173,11 @@
       "title": "Maximum concurrency",
       "type": "integer",
       "description": "Maximum number of concurrent detail requests (API or web).",
-      "minimum": 1,
-      "default": 3,
-      "editor": "number"
+      "minimum": 4,
+      "maximum": 30,
+      "default": 10,
+      "editor": "number",
+      "prefill": 10
     },
     "requestTimeoutMs": {
       "title": "Request timeout (ms)",
@@ -184,14 +190,24 @@
     "proxyConfiguration": {
       "title": "Proxy configuration",
       "type": "object",
-      "description": "Use Apify Proxy (datacenter recommended for TMDb).",
+      "description": "Proxy settings for web scraping. Residential proxies are recommended for better reliability.",
       "editor": "proxy",
       "default": {
         "useApifyProxy": true,
         "apifyProxyGroups": [
           "RESIDENTIAL"
         ]
+      },
+      "prefill": {
+        "useApifyProxy": true
       }
+    },
+    "metamorph": {
+      "title": "Metamorph",
+      "type": "string",
+      "description": "Actor ID to metamorph into after completion (for chaining actors).",
+      "editor": "textfield",
+      "example": "apify/web-scraper"
     }
   },
   "required": [],

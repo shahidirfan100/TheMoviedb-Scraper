@@ -376,8 +376,13 @@ const pushContentAndExtras = async ({
     stats,
     source,
 }) => {
-    await Dataset.pushData(mapContentRecord(detail, contentType, source));
-    stats.contents += 1;
+    try {
+        await Dataset.pushData(mapContentRecord(detail, contentType, source));
+        stats.contents += 1;
+    } catch (error) {
+        log.error(`Failed to push content data for ${contentType} ${detail.id}`, { error: error.message });
+        throw error;
+    }
 
     if (extrasConfig.collectPeople) {
         stats.extraItems += await pushCreditsRecord(detail, contentType, source);
@@ -838,6 +843,40 @@ const collectPeopleWithApi = async ({
 await Actor.main(async () => {
     const input = (await Actor.getInput()) ?? {};
 
+    // Validate contentType early
+    const validContentTypes = ['movie', 'tv', 'person', 'both'];
+    const contentType = input.contentType || 'tv';
+    if (!validContentTypes.includes(contentType)) {
+        const errorMsg = `Invalid contentType: "${contentType}". Must be one of: ${validContentTypes.join(', ')}`;
+        log.error(errorMsg);
+        throw new Error(errorMsg);
+    }
+
+    // Validate numeric inputs
+    if (input.resultsWanted !== undefined && input.resultsWanted !== null) {
+        const val = Number(input.resultsWanted);
+        if (!Number.isFinite(val) || val < 1) {
+            log.warning(`Invalid resultsWanted: ${input.resultsWanted}. Using default: 100`);
+            input.resultsWanted = 100;
+        }
+    }
+
+    if (input.maxPages !== undefined && input.maxPages !== null) {
+        const val = Number(input.maxPages);
+        if (!Number.isFinite(val) || val < 1) {
+            log.warning(`Invalid maxPages: ${input.maxPages}. Using default: 5`);
+            input.maxPages = 5;
+        }
+    }
+
+    if (input.maxConcurrency !== undefined && input.maxConcurrency !== null) {
+        const val = Number(input.maxConcurrency);
+        if (!Number.isFinite(val) || val < 1) {
+            log.warning(`Invalid maxConcurrency: ${input.maxConcurrency}. Using default: 10`);
+            input.maxConcurrency = 10;
+        }
+    }
+
     const stateKey = 'scraper_state';
     let state = (await Actor.getValue(stateKey)) || {
         currentType: null,
@@ -865,7 +904,6 @@ await Actor.main(async () => {
     const {
         apiKey,
         useApiFirst = true,
-        contentType = 'tv',
         searchQueries = [],
         genreIds = [],
         yearFrom,
@@ -885,11 +923,22 @@ await Actor.main(async () => {
         peopleQuery,
         peopleResultsWanted = 10,
         proxyConfiguration,
-        maxConcurrency = 1,
+        maxConcurrency = 10,
         requestTimeoutSecs = 35,
+        metamorph,
     } = input;
 
     const activeApiKey = typeof apiKey === 'string' && apiKey.trim() ? apiKey.trim() : null;
+
+    // Log configuration at start
+    log.info('Starting TMDb scraper with configuration:', {
+        contentType,
+        useApiFirst,
+        hasApiKey: Boolean(activeApiKey),
+        resultsWanted,
+        maxPages,
+        maxConcurrency,
+    });
 
     const delayRange = { minDelayMs, maxDelayMs };
     const extrasConfig = {
@@ -902,7 +951,7 @@ await Actor.main(async () => {
         maxImagesPerContent,
     };
 
-    const concurrencyLimit = Math.max(1, Number(maxConcurrency) || 1);
+    const concurrencyLimit = Math.max(1, Number(maxConcurrency) || 10);
     const timeoutSecs = Number(requestTimeoutSecs);
     REQUEST_TIMEOUT_MS = Math.max(5000, Number.isFinite(timeoutSecs) ? timeoutSecs * 1000 : 35000);
 
@@ -926,6 +975,18 @@ await Actor.main(async () => {
     const effectiveQueries = normalizedSearchQueries.length
         ? normalizedSearchQueries
         : [null]; // null indicates discover mode
+
+    // Warn if running with minimal configuration
+    if (!normalizedSearchQueries.length && !normalizedGenreIds.length && !yearFrom && !yearTo) {
+        log.info('Running in discover mode without filters. Will collect popular content.');
+    }
+
+    // Ensure there's something to scrape
+    if (requestedContentTypes.length === 0 && !peopleQuery && contentType !== 'person') {
+        const errorMsg = 'No content type specified. Please set contentType to movie, tv, both, or person.';
+        log.error(errorMsg);
+        throw new Error(errorMsg);
+    }
 
     let resuming = state.currentType !== null;
     if (resuming) {
@@ -1090,8 +1151,28 @@ await Actor.main(async () => {
         }
     }
 
-    const summary = `Completed with ${stats.contents} content items and ${stats.extraItems} auxiliary records.`;
+    // Check if any data was collected
+    if (stats.contents === 0) {
+        log.warning('No content items were collected. This might indicate an issue with the input configuration or TMDb availability.');
+    }
+
+    const summary = `Completed successfully! Collected ${stats.contents} content items and ${stats.extraItems} auxiliary records.`;
     log.info(summary);
+    log.info('Scraper finished successfully', {
+        contentsCollected: stats.contents,
+        extraItemsCollected: stats.extraItems,
+        mode: stats.mode,
+        apiFailures: stats.apiFailures,
+    });
     await Actor.setStatusMessage(summary);
     await Actor.setValue(stateKey, null); // Clear state on completion
+
+    // Handle metamorph if configured (for chaining actors)
+    if (metamorph) {
+        log.info('Metamorphing to another actor', { actorId: metamorph });
+        await Actor.metamorph(metamorph);
+    }
+
+    // Exit gracefully
+    await Actor.exit('Actor finished successfully', { exitCode: 0 });
 });
