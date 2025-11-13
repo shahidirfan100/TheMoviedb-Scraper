@@ -1,60 +1,59 @@
 {
   "title": "TMDb Comprehensive Scraper",
-  "description": "Scrape comprehensive movie, TV show, and people data from The Movie Database (TMDb). Supports API access with fallback to website scraping.",
+  "description": "Scrape comprehensive movie, TV show, and peopl...(TMDb). Supports API access with fallback to website scraping.",
   "type": "object",
   "schemaVersion": 1,
   "properties": {
     "apiKey": {
       "title": "TMDb API Key (Optional)",
       "type": "string",
-      "description": "Your TMDb API key (v3 auth). If provided, uses TMDb API for faster data collection. If not provided, falls back to website scraping. Get one at https://www.themoviedb.org/settings/api",
+      "description": "Your TMDb API key (v3 auth). If provided, ...e scraping. Get one at https://www.themoviedb.org/settings/api",
       "editor": "textfield",
       "isSecret": true
     },
     "useApiFirst": {
       "title": "Use API First (when available)",
       "type": "boolean",
-      "description": "If true and API key is provided, attempts to use TMDb API first. If false or API key is missing, uses website scraping directly.",
-      "editor": "checkbox",
-      "default": true
+      "description": "If true and API key is provided, attempts to use TMDb API first. If false, uses website scraping as primary and API for fallbacks.",
+      "default": true,
+      "editor": "checkbox"
     },
     "contentType": {
       "title": "Content Type",
       "type": "string",
       "description": "Type of content to scrape: movies, TV shows, people, or both movies and TV shows.",
-      "enum": ["movie", "tv", "person", "both"],
+      "enum": [
+        "movie",
+        "tv",
+        "person",
+        "both"
+      ],
       "default": "tv",
-      "editor": "select"
+      "editor": "select",
+      "prefill": "tv"
     },
     "searchQueries": {
       "title": "Search Queries",
       "type": "string",
       "description": "Comma-separated list of search terms to query TMDb for. Each query will be searched separately.",
       "editor": "textfield",
-      "default": ""
+      "default": "",
+      "prefill": ""
     },
     "genreIds": {
       "title": "Genre IDs",
       "type": "string",
-      "description": "Comma-separated TMDb genre IDs to filter by. For movies: 28=Action, 35=Comedy, 18=Drama, etc. For TV: 10759=Action&Adventure, 16=Animation, 35=Comedy, etc.",
+      "description": "Comma-separated TMDb genre IDs to filter by. F... For TV: 10759=Action&Adventure, 16=Animation, 35=Comedy, etc.",
+      "editor": "textfield",
+      "default": "",
+      "prefill": ""
+    },
+    "peopleQuery": {
+      "title": "People Search Query (Optional)",
+      "type": "string",
+      "description": "Optional comma-separated list of people search terms, to collect people data via API (if API key provided).",
       "editor": "textfield",
       "default": ""
-    },
-    "yearFrom": {
-      "title": "Release Year From",
-      "type": "integer",
-      "description": "Minimum release year to filter content.",
-      "editor": "number",
-      "minimum": 1900,
-      "maximum": 2030
-    },
-    "yearTo": {
-      "title": "Release Year To",
-      "type": "integer",
-      "description": "Maximum release year to filter content.",
-      "editor": "number",
-      "minimum": 1900,
-      "maximum": 2030
     },
     "resultsWanted": {
       "title": "Maximum Results",
@@ -62,7 +61,8 @@
       "description": "Maximum number of content items to collect per search query.",
       "minimum": 1,
       "default": 100,
-      "editor": "number"
+      "editor": "number",
+      "prefill": 10
     },
     "maxPages": {
       "title": "Maximum Pages",
@@ -70,120 +70,115 @@
       "description": "Maximum number of API result pages to fetch (each page contains ~20 items).",
       "minimum": 1,
       "default": 5,
-      "editor": "number"
+      "editor": "number",
+      "prefill": 2
     },
     "sortBy": {
       "title": "Sort By",
       "type": "string",
-      "description": "Sort order for discover endpoint. Only used when no search queries are provided.",
+      "description": "Sorting for discover endpoints when using filters (see TMDb discover API docs).",
       "enum": [
         "popularity.desc",
         "popularity.asc",
-        "release_date.desc",
-        "release_date.asc",
         "vote_average.desc",
         "vote_average.asc",
-        "vote_count.desc",
-        "vote_count.asc"
+        "primary_release_date.desc",
+        "primary_release_date.asc",
+        "first_air_date.desc",
+        "first_air_date.asc"
       ],
       "default": "popularity.desc",
       "editor": "select"
     },
+    "minVoteCount": {
+      "title": "Minimum Vote Count",
+      "type": "integer",
+      "description": "Minimum number of votes for discover filters (to avoid very obscure content).",
+      "minimum": 0,
+      "default": 0,
+      "editor": "number"
+    },
+    "minVoteAverage": {
+      "title": "Minimum Vote Average",
+      "type": "number",
+      "description": "Minimum average vote for discover filters.",
+      "minimum": 0,
+      "maximum": 10,
+      "default": 0,
+      "editor": "number"
+    },
     "collectPeople": {
-      "title": "Collect People Data",
+      "title": "Collect people data (API)",
       "type": "boolean",
-      "description": "Collect detailed information about people (actors, directors, etc.) associated with the content.",
-      "editor": "checkbox",
-      "default": false
+      "description": "If true and API key provided, collects people/credits info for content items and/or people search queries.",
+      "default": false,
+      "editor": "checkbox"
     },
     "collectReviews": {
-      "title": "Collect Reviews",
+      "title": "Collect reviews (API)",
       "type": "boolean",
-      "description": "Collect user reviews for movies and TV shows.",
-      "editor": "checkbox",
-      "default": false
-    },
-    "collectKeywords": {
-      "title": "Collect Keywords",
-      "type": "boolean",
-      "description": "Collect keywords/tags associated with the content.",
-      "editor": "checkbox",
-      "default": false
+      "description": "If true and API key provided, collects user reviews for each content item.",
+      "default": false,
+      "editor": "checkbox"
     },
     "collectImages": {
-      "title": "Collect Images",
+      "title": "Collect images metadata (API)",
       "type": "boolean",
-      "description": "Collect poster and backdrop images for the content.",
-      "editor": "checkbox",
-      "default": false
+      "description": "If true and API key provided, collects backdrops, posters, and profile image metadata.",
+      "default": false,
+      "editor": "checkbox"
     },
-    "collectCollections": {
-      "title": "Collect Collections",
+    "collectKeywords": {
+      "title": "Collect keywords (API)",
       "type": "boolean",
-      "description": "Collect movie/TV show collection information.",
-      "editor": "checkbox",
-      "default": false
+      "description": "If true and API key provided, collects keywords/tags associated with content.",
+      "default": false,
+      "editor": "checkbox"
     },
-    "maxReviewsPerContent": {
-      "title": "Max Reviews Per Content",
-      "type": "integer",
-      "description": "Maximum number of reviews to collect per movie/TV show.",
-      "minimum": 1,
-      "default": 25,
-      "editor": "number"
+    "collectVideos": {
+      "title": "Collect videos (API)",
+      "type": "boolean",
+      "description": "If true and API key provided, collects videos/trailers metadata.",
+      "default": false,
+      "editor": "checkbox"
     },
-    "maxImagesPerContent": {
-      "title": "Max Images Per Content",
-      "type": "integer",
-      "description": "Maximum number of images to collect per movie/TV show.",
-      "minimum": 1,
-      "default": 20,
-      "editor": "number"
+    "collectWatchProviders": {
+      "title": "Collect watch providers (API)",
+      "type": "boolean",
+      "description": "If true and API key provided, collects watch providers (streaming platforms) data.",
+      "default": false,
+      "editor": "checkbox"
     },
     "minDelayMs": {
-      "title": "Minimum Delay (ms)",
+      "title": "Minimum delay between requests (ms)",
       "type": "integer",
-      "description": "Minimum delay between requests to respect rate limits.",
-      "minimum": 100,
-      "default": 1000,
+      "description": "Minimum random delay between HTTP requests, in milliseconds.",
+      "minimum": 0,
+      "default": 500,
       "editor": "number"
     },
     "maxDelayMs": {
-      "title": "Maximum Delay (ms)",
+      "title": "Maximum delay between requests (ms)",
       "type": "integer",
-      "description": "Maximum delay between requests for randomization.",
-      "minimum": 100,
-      "default": 3000,
+      "description": "Maximum random delay between HTTP requests, in milliseconds.",
+      "minimum": 0,
+      "default": 2000,
       "editor": "number"
     },
-    "peopleQuery": {
-      "title": "People Search Query",
-      "type": "string",
-      "description": "Search query for people when contentType is 'person'.",
-      "editor": "textfield"
-    },
-    "peopleResultsWanted": {
-      "title": "People Results Wanted",
+    "maxConcurrency": {
+      "title": "Maximum concurrency",
       "type": "integer",
-      "description": "Maximum number of people to collect when searching for people.",
-      "minimum": 1,
-      "default": 10,
-      "editor": "number"
-    },
-        "maxConcurrency": {
-      "title": "Parallel Requests",
-      "type": "integer",
-      "description": "Maximum number of TMDb API detail fetches and fallback detail page requests processed in parallel. Raise cautiously to speed up scraping.",
+      "description": "Maximum number of concurrent detail requests (API or web).",
       "minimum": 1,
       "default": 3,
       "editor": "number"
     },
-    "requestTimeoutSecs": {
-      "title": "Request Timeout (seconds)",
+    "requestTimeoutMs": {
+      "title": "Request timeout (ms)",
       "type": "integer",
-      "description": "Maximum time to wait for a single API or website request before giving up.",
-      "minimum": 5,
-      "default": 35,
+      "description": "Timeout for HTTP requests in milliseconds.",
+      "minimum": 1000,
+      "default": 35000,
       "editor": "number"
     },
     "proxyConfiguration": {
@@ -193,7 +188,9 @@
       "editor": "proxy",
       "default": {
         "useApifyProxy": true,
-        "apifyProxyGroups": ["RESIDENTIAL"]
+        "apifyProxyGroups": [
+          "RESIDENTIAL"
+        ]
       }
     }
   },

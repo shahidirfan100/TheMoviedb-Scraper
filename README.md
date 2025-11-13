@@ -1,447 +1,185 @@
-# TMDb Comprehensive Data Scraper
+<h1 align="center">TMDb Scraper</h1>
 
-> Production-ready Apify actor for collecting comprehensive data from The Movie Database (TMDb) with automatic fallback scraping capabilities.
+<p align="center">
+  <b>Extract comprehensive data from The Movie Database (TMDb) effortlessly. Scrape movies, TV shows, and celebrity information with ease.</b>
+</p>
 
-This actor collects movies, TV shows, people, reviews, keywords, images, and collections data from TMDb. It uses the official TMDb API when available and automatically falls back to website scraping when needed, ensuring reliable data collection.
+<p align="center">
+  <a href="https://apify.com/shahidirfan/themoviedb-scraper"><img src="https://img.shields.io/badge/Apify-Ready-blue.svg" alt="Apify Ready"></a>
+  <a href="https://apify.com/shahidirfan/themoviedb-scraper"><img src="https://img.shields.io/apify/actor-builds/shahidirfan/themoviedb-scraper" alt="Build Status"></a>
+  <a href="https://apify.com/shahidirfan/themoviedb-scraper"><img src="https://img.shields.io/apify/actor-runs/shahidirfan/themoviedb-scraper" alt="Runs"></a>
+</p>
+
+## 📖 Description
+
+TMDb Scraper is a powerful and flexible tool designed for extracting detailed information from The Movie Database (TMDb). Whether you're building a personal project, conducting academic research, or developing a commercial application, this scraper offers a reliable and user-friendly solution to gather data on movies, TV shows, and people.
+
+This actor prioritizes the official TMDb API for fast and accurate data retrieval, with a built-in fallback to web scraping methods when necessary. It supports customizable search parameters, allowing you to filter by genre, year, popularity, and more.
+
+### Key Benefits
+- **Comprehensive Data Collection**: Gather rich metadata including ratings, reviews, cast, crew, images, and keywords.
+- **Flexible Search Capabilities**: Search by keywords, genres, release years, and specific queries.
+- **High-Quality Output**: Structured JSON data ready for integration into your applications.
+- **Reliable Performance**: Optimized for speed and efficiency with configurable delays to respect rate limits.
 
 ## ✨ Features
 
-- **Multi-Content Support** – Scrape movies, TV shows, people, reviews, keywords, images, and collections
-- **Flexible Data Collection** – Choose what data to collect with granular control
-- **API with Fallback** – Uses TMDb API when available, falls back to website scraping
-- **Comprehensive Search** – Search by query, discover by genre/year, or collect popular content
-- **Rich Metadata** – Collect detailed information, credits, reviews, images, and more
-- **People Data** – Collect actor/director profiles and filmographies
-- **Rate Limiting** – Built-in delays to respect TMDb policies
-- **Production Ready** – Handles errors, retries, and edge cases automatically
+- **Multi-Content Support**: Scrape data for movies, TV shows, and people.
+- **Advanced Filtering**: Use genre IDs, year ranges, and sorting options to refine results.
+- **Rich Metadata Extraction**: Collect reviews, images, keywords, and collection details.
+- **API-First Approach**: Leverages TMDb's official API for superior data quality and speed.
+- **Customizable Limits**: Control the number of results, pages, and items per content.
+- **Delay Management**: Built-in delays to ensure compliance with TMDb's terms of service.
 
-## 📥 Input Parameters
+## 🔧 Input Configuration
 
-### API Configuration
+Configure the scraper using the following input parameters to tailor the data extraction to your needs.
 
-| Parameter | Type | Required | Description | Default |
-|-----------|------|----------|-------------|---------|
-| `apiKey` | String | No | Your TMDb API v3 key. If provided, uses API for faster data collection. If not provided, falls back to website scraping. | - |
-| `useApiFirst` | Boolean | No | If true and API key is provided, attempts to use TMDb API first. If false or API key is missing, uses website scraping directly. | `true` |
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `apiKey` | String | Your TMDb API key for enhanced reliability and speed. Obtain one from [TMDb](https://www.themoviedb.org/settings/api). | `YOUR_TMDB_API_KEY_HERE` |
+| `useApiFirst` | Boolean | Prioritize the TMDb API over web scraping. | `true` |
+| `contentType` | String | Type of content to scrape: `movie`, `tv`, or `person`. | `tv` |
+| `searchQueries` | Array | List of search terms for content queries. | `[]` |
+| `genreIds` | Array | Genre IDs to filter results (e.g., [28] for Action). | `[]` |
+| `yearFrom` | Integer | Starting year for release date filtering. |  |
+| `yearTo` | Integer | Ending year for release date filtering. |  |
+| `resultsWanted` | Integer | Maximum number of main results to return. | `10` |
+| `maxPages` | Integer | Maximum pages to scrape from search results. | `3` |
+| `sortBy` | String | Sorting criteria (e.g., `popularity.desc`, `vote_average.desc`). | `popularity.desc` |
+| `collectPeople` | Boolean | Include cast and crew information. | `true` |
+| `collectReviews` | Boolean | Gather user reviews and ratings. | `true` |
+| `collectKeywords` | Boolean | Extract associated keywords and tags. | `true` |
+| `collectImages` | Boolean | Download high-resolution images. | `true` |
+| `collectCollections` | Boolean | For movies, include collection details. | `false` |
+| `maxReviewsPerContent` | Integer | Limit reviews collected per item. | `25` |
+| `maxImagesPerContent` | Integer | Limit images collected per item. | `20` |
+| `minDelayMs` | Integer | Minimum delay between requests (ms). | `1000` |
+| `maxDelayMs` | Integer | Maximum delay between requests (ms). | `3000` |
+| `peopleQuery` | String | Search term for people (when contentType is `person`). |  |
+| `peopleResultsWanted` | Integer | Maximum people results to return. | `10` |
 
-### Content Selection
+## 📤 Output Data
 
-| Parameter | Type | Description | Default |
-|-----------|------|-------------|---------|
-| `contentType` | String | Content type to scrape: 'movie', 'tv', 'person', or 'both' | `tv` |
+The scraper outputs structured JSON data for each scraped item. Below are examples of the data formats for different content types.
 
-### Search Options
-
-| Parameter | Type | Description | Default |
-|-----------|------|-------------|---------|
-| `searchQueries` | Array | List of search terms to query TMDb for. Each query will be searched separately. | `[]` |
-| `genreIds` | Array | TMDb genre IDs to filter by. | - |
-| `yearFrom` | Integer | Minimum release/first air year. | - |
-| `yearTo` | Integer | Maximum release/first air year. | - |
-| `sortBy` | String | Sort order for discover endpoint. | `popularity.desc` |
-
-### Collection Options
-
-| Parameter | Type | Description | Default |
-|-----------|------|-------------|---------|
-| `resultsWanted` | Integer | Maximum number of content items to collect per search query. | 100 |
-| `maxPages` | Integer | Maximum API result pages to fetch. | 5 |
-
-### Additional Data Collection
-
-| Parameter | Type | Description | Default |
-|-----------|------|-------------|---------|
-| `collectPeople` | Boolean | Collect cast and crew data for each content item. | `false` |
-| `collectReviews` | Boolean | Collect user reviews for each content item. | `false` |
-| `collectKeywords` | Boolean | Collect keywords/tags for each content item. | `false` |
-| `collectImages` | Boolean | Collect poster and backdrop images for each content item. | `false` |
-| `collectCollections` | Boolean | Collect movie collection data (movies only). | `false` |
-| `maxReviewsPerContent` | Integer | Maximum number of reviews to collect per content item. | 25 |
-| `maxImagesPerContent` | Integer | Maximum number of images to collect per content item. | 20 |
-
-### Rate Limiting
-
-| Parameter | Type | Description | Default |
-|-----------|------|-------------|---------|
-| `minDelayMs` | Integer | Minimum delay between requests to respect rate limits. | 1000 |
-| `maxDelayMs` | Integer | Maximum delay between requests for randomization. | 3000 |
-
-### People Data Collection
-
-| Parameter | Type | Description | Default |
-|-----------|------|-------------|---------|
-| `peopleQuery` | String | Search term for people data collection. | - |
-| `peopleResultsWanted` | Integer | Maximum number of people to collect. | 10 |
-
-## 🚀 Usage Examples
-
-### Basic Movie Collection
-
-Collect basic movie information without additional data.
-
+### Movie Data
 ```json
 {
-  "contentType": "movie",
-  "searchQueries": ["Inception", "The Dark Knight"],
-  "collectReviews": false,
-  "collectKeywords": false,
-  "collectImages": false,
-  "collectPeople": false,
-  "collectCollections": false
-}
-```
-
-### Comprehensive TV Show Data Collection
-
-Collect TV shows with all available data including reviews, images, and people.
-
-```json
-{
-  "contentType": "tv",
-  "searchQueries": ["Breaking Bad", "Stranger Things"],
-  "collectReviews": true,
-  "collectKeywords": true,
-  "collectImages": true,
-  "collectPeople": true,
-  "collectCollections": false,
-  "maxReviewsPerContent": 50,
-  "maxImagesPerContent": 20
-}
-```
-
-### People-Centric Collection
-
-Collect detailed information about actors and directors.
-
-```json
-{
-  "contentType": "person",
-  "searchQueries": ["Leonardo DiCaprio", "Scarlett Johansson"],
-  "collectReviews": false,
-  "collectKeywords": false,
-  "collectImages": false,
-  "collectPeople": false,
-  "collectCollections": false
-}
-```
-
-### Mixed Content Types with API Key
-
-Use TMDb API for comprehensive data collection across multiple content types.
-
-```json
-{
-  "apiKey": "your_tmdb_api_key_here",
-  "useApiFirst": true,
-  "contentType": "both",
-  "searchQueries": ["Avengers", "The Mandalorian"],
-  "collectReviews": true,
-  "collectKeywords": true,
-  "collectImages": true,
-  "collectPeople": true,
-  "collectCollections": true,
-  "maxReviewsPerContent": 25,
-  "maxImagesPerContent": 15
-}
-```
-
-### Discover by Genre and Year
-
-Discover content by genre and release year without specific search queries.
-
-```json
-{
-  "contentType": "movie",
-  "genreIds": [28, 12],
-  "yearFrom": 2020,
-  "yearTo": 2024,
-  "sortBy": "popularity.desc",
-  "resultsWanted": 50,
-  "collectImages": true
-}
-```
-
-## 📤 Output Data Types
-
-The scraper can collect multiple types of data, each stored as separate dataset items with a `data_type` field.
-
-### Content Data (Movies/TV Shows)
-
-```json
-{
-  "tmdb_id": 1399,
-  "title": "Game of Thrones",
-  "overview": "Seven noble families fight for control of the mythical land of Westeros.",
-  "first_air_date": "2011-04-17",
+  "tmdb_id": 27205,
+  "title": "Inception",
+  "overview": "Cobb, a skilled thief who commits corporate espionage by infiltrating the subconscious of his targets, is offered a chance to regain his old life as payment for a task considered to be impossible: 'inception', the implantation of another person's idea into a target's subconscious.",
+  "release_date": "2010-07-15",
   "vote_average": 8.4,
-  "vote_count": 22000,
-  "popularity": 400.0,
-  "poster_path": "/u3bZgnGQ9T01sWNhyveQz0wH0Hl.jpg",
-  "backdrop_path": "/suopoADq0k8YZr4dQXcU6pToj6s.jpg",
-  "content_type": "tv",
-  "genres": ["Sci-Fi & Fantasy", "Drama", "Action & Adventure"],
-  "number_of_seasons": 8,
-  "number_of_episodes": 73,
-  "episode_run_time": [60],
-  "status": "Ended",
-  "networks": ["HBO"],
-  "created_by": ["David Benioff", "D.B. Weiss"],
-  "fetchedAt": "2025-08-11T12:00:00.000Z"
+  "popularity": 102.6,
+  "content_type": "movie",
+  "genres": ["Action", "Science Fiction", "Thriller"],
+  "cast": [...],
+  "crew": [...],
+  "reviews": [...],
+  "images": [...],
+  "keywords": [...]
 }
 ```
 
-### Credits Data
-
+### TV Show Data
 ```json
 {
-  "content_id": 1399,
+  "tmdb_id": 1396,
+  "title": "Breaking Bad",
+  "overview": "When Walter White, a New Mexico chemistry teacher, is diagnosed with Stage III cancer and given a prognosis of only two years left to live. He breaks bad.",
+  "first_air_date": "2008-01-20",
+  "vote_average": 8.8,
+  "popularity": 297.4,
   "content_type": "tv",
-  "content_title": "Game of Thrones",
-  "cast": [
-    {
-      "id": 1223786,
-      "name": "Emilia Clarke",
-      "character": "Daenerys Targaryen",
-      "order": 0,
-      "profile_path": "/iN5G7AdKKnvh5p3iKS5BdMK0q9Z.jpg"
-    }
-  ],
-  "crew": [
-    {
-      "id": 9813,
-      "name": "David Benioff",
-      "job": "Executive Producer",
-      "department": "Production",
-      "profile_path": null
-    }
-  ],
-  "data_type": "credits",
-  "fetchedAt": "2025-08-11T12:00:00.000Z"
+  "genres": ["Crime", "Drama", "Thriller"],
+  "cast": [...],
+  "crew": [...],
+  "reviews": [...],
+  "images": [...],
+  "keywords": [...]
 }
 ```
 
-### Reviews Data
-
-```json
-{
-  "content_id": 1399,
-  "content_type": "tv",
-  "content_title": "Game of Thrones",
-  "reviews": [
-    {
-      "id": "1234567890",
-      "author": "MovieCritic123",
-      "content": "An epic tale of power and betrayal...",
-      "url": "https://www.themoviedb.org/review/1234567890",
-      "created_at": "2020-05-20T10:30:00.000Z",
-      "updated_at": "2020-05-20T10:30:00.000Z",
-      "author_details": {
-        "name": "MovieCritic123",
-        "username": "moviecritic123",
-        "avatar_path": "/avatar.jpg",
-        "rating": 9.0
-      }
-    }
-  ],
-  "total_results": 150,
-  "data_type": "reviews",
-  "fetchedAt": "2025-08-11T12:00:00.000Z"
-}
-```
-
-### Images Data
-
-```json
-{
-  "content_id": 1399,
-  "content_type": "tv",
-  "content_title": "Game of Thrones",
-  "posters": [
-    {
-      "file_path": "/u3bZgnGQ9T01sWNhyveQz0wH0Hl.jpg",
-      "width": 1000,
-      "height": 1500,
-      "aspect_ratio": 0.667,
-      "vote_average": 5.5,
-      "vote_count": 12
-    }
-  ],
-  "backdrops": [
-    {
-      "file_path": "/suopoADq0k8YZr4dQXcU6pToj6s.jpg",
-      "width": 1920,
-      "height": 1080,
-      "aspect_ratio": 1.778,
-      "vote_average": 6.2,
-      "vote_count": 8
-    }
-  ],
-  "data_type": "images",
-  "fetchedAt": "2025-08-11T12:00:00.000Z"
-}
-```
-
-### People Data
-
+### Person Data
 ```json
 {
   "person_id": 6193,
   "name": "Leonardo DiCaprio",
-  "biography": "Leonardo Wilhelm DiCaprio is an American actor...",
+  "biography": "Leonardo Wilhelm DiCaprio is an American actor, producer, and environmentalist. He has often played unconventional roles, particularly in biopics and period films.",
   "birthday": "1974-11-11",
-  "deathday": null,
-  "gender": 2,
   "known_for_department": "Acting",
-  "place_of_birth": "Los Angeles, California, USA",
-  "profile_path": "/wo2hJpn04vbtmh0B9utCFdsQhxM.jpg",
-  "popularity": 25.5,
-  "also_known_as": ["Leo DiCaprio", "Leonardo Di Caprio"],
-  "movie_credits": [
-    {
-      "id": 27205,
-      "title": "Inception",
-      "character": "Dom Cobb",
-      "release_date": "2010-07-15"
-    }
-  ],
-  "tv_credits": [
-    {
-      "id": 1399,
-      "name": "Game of Thrones",
-      "character": "Guest",
-      "first_air_date": "2011-04-17"
-    }
-  ],
-  "data_type": "person",
-  "fetchedAt": "2025-08-11T12:00:00.000Z"
+  "popularity": 35.1,
+  "filmography": [...]
 }
 ```
 
-### Collection Data
+## 🚀 Usage Examples
 
+### Example 1: Scrape Popular Movies from 2024
 ```json
 {
-  "collection_id": 1241,
-  "name": "Harry Potter Collection",
-  "overview": "The Harry Potter film series...",
-  "poster_path": "/eVPs2Y0LyvTLZn6AP5Z6O2rtiGB.jpg",
-  "backdrop_path": "/wfnMt6LGqYHcNyOfsuusw5lX3bL.jpg",
-  "parts": [
-    {
-      "id": 671,
-      "title": "Harry Potter and the Philosopher's Stone",
-      "release_date": "2001-11-16",
-      "poster_path": "/wuMc08IPKEatf9rnMNXvIDxqP4W.jpg",
-      "vote_average": 7.9
-    }
-  ],
-  "data_type": "collection",
-  "fetchedAt": "2025-08-11T12:00:00.000Z"
+  "contentType": "movie",
+  "yearFrom": 2024,
+  "yearTo": 2024,
+  "sortBy": "popularity.desc",
+  "resultsWanted": 50,
+  "collectReviews": true,
+  "collectImages": true
 }
 ```
 
-## ⚙️ API Limits & Best Practices
+### Example 2: Get Details of Specific TV Shows
+```json
+{
+  "contentType": "tv",
+  "searchQueries": ["Breaking Bad", "Game of Thrones", "Stranger Things"],
+  "collectPeople": true,
+  "collectReviews": true,
+  "maxReviewsPerContent": 10
+}
+```
 
-- **TMDb API Limits**: 40 requests per 10 seconds, 200 requests per hour for free accounts
-- **Apify Platform**: No strict limits, but consider costs for large-scale scraping
-- **Delay Settings**: Use `minDelayMs` and `maxDelayMs` to respect rate limits
-- **Error Handling**: Automatic fallback to website scraping when API limits are reached
-- **Caching**: Results are cached to avoid duplicate API calls
+### Example 3: Find Celebrities by Name
+```json
+{
+  "contentType": "person",
+  "peopleQuery": "Leonardo DiCaprio",
+  "peopleResultsWanted": 5
+}
+```
 
-## 🔧 Getting a TMDb API Key
+### Example 4: Scrape Action Movies with High Ratings
+```json
+{
+  "contentType": "movie",
+  "genreIds": [28],
+  "sortBy": "vote_average.desc",
+  "resultsWanted": 20,
+  "collectKeywords": true
+}
+```
 
-1. Visit [https://www.themoviedb.org/](https://www.themoviedb.org/)
-2. Create a free account
-3. Go to Settings > API
-4. Request an API key (v3 auth)
-5. Copy the API key to use in the `apiKey` parameter
+## ⚙️ How to Use
 
-## 📊 TMDb Genre IDs
+1. **Set Up Your API Key**: Provide your TMDb API key in the `apiKey` field for optimal performance.
+2. **Configure Inputs**: Use the input parameters to specify your search criteria and data collection preferences.
+3. **Run the Actor**: Execute the scraper on the Apify platform.
+4. **Download Results**: Access and download the scraped data in JSON format.
 
-### Movie Genres
-- `28`: Action
-- `12`: Adventure
-- `16`: Animation
-- `35`: Comedy
-- `80`: Crime
-- `99`: Documentary
-- `18`: Drama
-- `10751`: Family
-- `14`: Fantasy
-- `36`: History
-- `27`: Horror
-- `10402`: Music
-- `9648`: Mystery
-- `10749`: Romance
-- `878`: Science Fiction
-- `10770`: TV Movie
-- `53`: Thriller
-- `10752`: War
-- `37`: Western
+## 📊 Limits and Considerations
 
-### TV Genres
-- `10759`: Action & Adventure
-- `16`: Animation
-- `35`: Comedy
-- `80`: Crime
-- `99`: Documentary
-- `18`: Drama
-- `10751`: Family
-- `10762`: Kids
-- `9648`: Mystery
-- `10763`: News
-- `10764`: Reality
-- `10765`: Sci-Fi & Fantasy
-- `10766`: Soap
-- `10767`: Talk
-- `10768`: War & Politics
-- `37`: Western
+- **Rate Limiting**: Respects TMDb API limits with configurable delays.
+- **Data Volume**: Large result sets may take longer to process.
+- **API Key Requirements**: Using your own API key is recommended for better reliability.
+- **Content Availability**: Data availability depends on TMDb's database.
 
-## 🐛 Troubleshooting
+## 📝 Disclaimer
 
-### Common Issues
+This scraper is intended for personal, educational, and research purposes. Users are responsible for complying with TMDb's terms of service and applicable laws. The developers are not liable for any misuse of this tool.
 
-**No results returned**
-- Check your search parameters
-- Try broader search queries
-- Verify genre IDs are correct
+## 🔗 Related Links
 
-**API rate limiting**
-- The actor includes automatic delays
-- Reduce `resultsWanted` or increase delay settings
-- Consider getting a TMDb API key for higher limits
-
-**Missing data fields**
-- Some content may not have complete information in TMDb
-- Enable fallback scraping for more comprehensive data collection
-
-**Authentication errors**
-- Verify your TMDb API key is correct and active
-- Check that your API key has the necessary permissions
-
-### Fallback Behavior
-
-When API access fails, the actor automatically falls back to website scraping:
-
-- **Data Source**: Switches from TMDb API to TMDb website
-- **Data Format**: Converted to match API format where possible
-- **Limitations**: Fewer fields available, slower collection
-- **Tracking**: Fallback data includes `"source": "tmdb_website_fallback"` field
-
-## 📝 Contributing
-
-We welcome contributions! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
----
-
-**⚠️ Important**: Use this actor responsibly and respect TMDb's terms of service and API usage policies.
+- [TMDb Official Website](https://www.themoviedb.org/)
+- [Apify Platform](https://apify.com/)
+- [Get TMDb API Key](https://www.themoviedb.org/settings/api)
