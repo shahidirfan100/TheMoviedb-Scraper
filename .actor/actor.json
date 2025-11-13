@@ -1,6 +1,6 @@
 {
   "actorSpecification": 1,
-  "name": "tmdb-comprehensive-scraper",
+  "name": "themoviedb-scraper",
   "version": "1.0.0",
   "buildTag": "latest",
   "dockerfile": "./Dockerfile",

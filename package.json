@@ -1,5 +1,5 @@
 {
-  "name": "tmdb-comprehensive-scraper",
+  "name": "themoviedb-scraper",
   "version": "1.0.0",
   "description": "Production-ready Apify actor for collecting comprehensive data from The Movie Database (TMDb) with automatic fallback scraping capabilities.",
   "type": "module",
